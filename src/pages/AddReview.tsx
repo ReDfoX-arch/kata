@@ -1,181 +1,189 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ScoreGroup from '../components/ScoreGroup';
-import RestaurantSearch from '../components/RestaurantSearch';
 import { supabase } from '../lib/supabase';
+import { Search, MapPin, PlusCircle, AlertCircle, Calendar } from 'lucide-react';
+
+// Se hai un componente ScoreGroup separato, assicurati che sia importato correttamente, 
+// o se era definito qui dentro, mantienilo. Assumo che ScoreGroup sia nello stesso file o in components.
+import ScoreGroup from '../components/ScoreGroup'; 
 
 export default function AddReview() {
   const navigate = useNavigate();
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRestaurant, setSelectedRestaurant] = useState<string | null>(null);
   
-  // Stati per memorizzare i dati inseriti dall'utente
   const [username, setUsername] = useState('');
-  const [restaurant, setRestaurant] = useState<{name: string; city: string; country: string; lat: number; lng: number} | null>(null);
+  // NUOVO: Stato per la data, impostato di base su oggi (formato YYYY-MM-DD)
+  const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]);
+  
   const [scores, setScores] = useState({
     location: 0,
     offer: 0,
     bill: 0,
     menu: 0
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Calcolo automatico della media
-  const values = Object.values(scores);
-  const isAllVoted = values.every(v => v > 0);
-  const average = isAllVoted ? (values.reduce((a, b) => a + b, 0) / 4).toFixed(1) : '0.0';
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleScoreChange = (category: keyof typeof scores, value: number) => {
-    setScores(prev => ({ ...prev, [category]: value }));
-  };
-
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Forza il testo in MAIUSCOLO
-    setUsername(e.target.value.toUpperCase());
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!username || !isAllVoted || !restaurant) {
-        alert("Compila tutti i campi: Username, Ristorante e tutti i 4 voti!");
-        return;
-      }
-
-      setIsSubmitting(true);
-
-      try {
-        const upperUsername = username.toUpperCase();
-
-        // 1. Salviamo o confermiamo l'utente (Upsert: aggiorna se esiste, inserisce se non esiste)
-        const { error: userError } = await supabase
-          .from('users')
-          .upsert({ username: upperUsername }, { onConflict: 'username' });
-        
-        if (userError) throw userError;
-
-        // 2. Cerchiamo se il ristorante è già nel database (per evitare duplicati)
-        let restaurantId = null;
-        const { data: existingRest, error: searchRestError } = await supabase
-          .from('restaurants')
-          .select('id')
-          .eq('name', restaurant.name)
-          .eq('lat', restaurant.lat)
-          .maybeSingle(); // maybeSingle non dà errore se non trova nulla
-
-        if (searchRestError) throw searchRestError;
-
-        if (existingRest) {
-          restaurantId = existingRest.id;
-        } else {
-          // Se è un nuovo locale, lo aggiungiamo
-          const { data: newRest, error: insertRestError } = await supabase
-            .from('restaurants')
-            .insert({
-              name: restaurant.name,
-              city: restaurant.city,
-              country: restaurant.country,
-              lat: restaurant.lat,
-              lng: restaurant.lng
-            })
-            .select('id')
-            .single();
-
-          if (insertRestError) throw insertRestError;
-          restaurantId = newRest.id;
-        }
-
-        // 3. Inseriamo la recensione effettiva
-        const { error: reviewError } = await supabase
-          .from('reviews')
-          .insert({
-            restaurant_id: restaurantId,
-            username: upperUsername,
-            score_location: scores.location,
-            score_offer: scores.offer,
-            score_bill: scores.bill,
-            score_menu: scores.menu
-          });
-
-        if (reviewError) throw reviewError;
-
-        alert(`✅ Recensione salvata con successo!`);
-        
-        // Riporta l'utente alla Home Page
-        navigate('/');
-
-      } catch (error) {
-        console.error("Errore durante il salvataggio:", error);
-        alert("Si è verificato un errore di connessione col database.");
-      } finally {
-        setIsSubmitting(false);
-      }
+  useEffect(() => {
+    const fetchRestaurants = async () => {
+      const { data } = await supabase.from('restaurants').select('*');
+      if (data) setRestaurants(data);
     };
+    fetchRestaurants();
+  }, []);
+
+  const filteredRestaurants = restaurants.filter(r => 
+    r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    r.city.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const finalScore = (
+    (scores.location + scores.offer + scores.bill + scores.menu) / 4
+  ).toFixed(1);
+
+  const handleSave = async () => {
+    if (!username.trim()) {
+      setError('Inserisci il tuo username!');
+      return;
+    }
+    if (!selectedRestaurant) {
+      setError('Seleziona un locale!');
+      return;
+    }
+    if (Object.values(scores).some(s => s === 0)) {
+      setError('Dai un voto a tutte le categorie!');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    // Inseriamo la recensione forzando la data selezionata (created_at)
+    const { error: reviewError } = await supabase.from('reviews').insert([{
+      restaurant_id: selectedRestaurant,
+      username: username.toUpperCase(),
+      score_location: scores.location,
+      score_offer: scores.offer,
+      score_bill: scores.bill,
+      score_menu: scores.menu,
+      average_score: Number(finalScore),
+      created_at: new Date(reviewDate).toISOString() // NUOVO: Passiamo la data custom
+    }]);
+
+    if (reviewError) {
+      setError('Errore di connessione col database.');
+      setSaving(false);
+    } else {
+      navigate('/');
+    }
+  };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-100 mt-4 mb-20 md:mb-4">
-      <h2 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-        <span>✍️</span> Nuova Recensione
+    <div className="max-w-2xl mx-auto space-y-6 mb-20 animate-fade-in">
+      <h2 className="text-3xl font-extrabold text-slate-800 flex items-center gap-2 mb-8">
+        ✍️ Nuova Recensione
       </h2>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        
-        {/* Sezione Username */}
-        <div>
-          <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
-            Il tuo Username
-          </label>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center gap-2 font-bold animate-shake">
+          <AlertCircle size={20} /> {error}
+        </div>
+      )}
+
+      {/* Dati Utente e Data */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Username */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Il tuo Username</label>
           <input 
             type="text" 
-            placeholder="Es. GUGLIELMO SCUOTIPERE"
+            placeholder="Es. MARCO"
             value={username}
-            onChange={handleUsernameChange}
-            className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all uppercase placeholder:normal-case"
-            required
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 text-slate-800 py-3 px-4 rounded-lg font-bold uppercase focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-colors"
           />
-          <p className="text-xs text-slate-500 mt-2">Scegli un nome. Sarà visibile pubblicamente.</p>
         </div>
 
-        {/* Qui andrà il componente per cercare/selezionare il ristorante */}
-        <div className="pt-4 pb-2 border-t border-slate-100">
-          <RestaurantSearch onSelect={setRestaurant} />
+        {/* Selezione Data */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide flex items-center gap-2">
+            <Calendar size={16} className="text-orange-500"/> Data Visita
+          </label>
+          <input 
+            type="date" 
+            value={reviewDate}
+            onChange={(e) => setReviewDate(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 text-slate-800 py-3 px-4 rounded-lg font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-colors"
+          />
         </div>
+      </div>
 
-        {/* Sezione Voti */}
-        <div className="pt-4 border-t border-slate-100">
-          <ScoreGroup label="Location" value={scores.location} onChange={(v) => handleScoreChange('location', v)} />
-          <ScoreGroup label="Offerta" value={scores.offer} onChange={(v) => handleScoreChange('offer', v)} />
-          <ScoreGroup label="Prezzo" value={scores.bill} onChange={(v) => handleScoreChange('bill', v)} />
-          <ScoreGroup label="Menù" value={scores.menu} onChange={(v) => handleScoreChange('menu', v)} />
+      {/* Selezione Ristorante */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide flex items-center gap-2">
+          <MapPin size={16} className="text-orange-500"/> Cerca il Locale
+        </label>
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-3.5 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Es. Istanbul Kebap Cinisello..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-colors"
+          />
         </div>
-
-        {/* Sezione Risultato e Invio */}
-        <div className="bg-slate-50 p-6 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200">
-          <div className="text-center sm:text-left">
-            <p className="text-slate-500 font-bold uppercase text-xs tracking-wider mb-1">Punteggio Finale</p>
-            <p className="text-4xl font-black text-slate-800">
-              🌯 {average} <span className="text-xl text-slate-400 font-medium">/ 10</span>
-            </p>
-          </div>
-          
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button 
-              type="button"
-              onClick={() => navigate(-1)}
-              className="flex-1 sm:flex-none px-6 py-3 rounded-lg font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+        
+        <div className="max-h-48 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+          {filteredRestaurants.map(r => (
+            <div 
+              key={r.id} 
+              onClick={() => setSelectedRestaurant(r.id)}
+              className={`p-3 rounded-lg cursor-pointer border-2 transition-all ${selectedRestaurant === r.id ? 'border-orange-500 bg-orange-50' : 'border-transparent hover:bg-slate-50'}`}
             >
-              Annulla
-            </button>
-            <button 
-              type="submit"
-              className={`flex-1 sm:flex-none px-8 py-3 rounded-lg font-bold text-white transition-all shadow-md
-                ${username && isAllVoted && restaurant && !isSubmitting ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-lg' : 'bg-slate-300 cursor-not-allowed'}
-              `}
-              disabled={!username || !isAllVoted || !restaurant || isSubmitting}
-            >
-              {isSubmitting ? 'Salvataggio...' : 'Salva Voto'}
-            </button>
+              <div className="font-bold text-slate-800">{r.name}</div>
+              <div className="text-xs text-slate-500">{r.city}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Voti */}
+      <div className="space-y-4">
+        <ScoreGroup label="Location" value={scores.location} onChange={(v) => setScores({...scores, location: v})} />
+        <ScoreGroup label="Offerta" value={scores.offer} onChange={(v) => setScores({...scores, offer: v})} />
+        <ScoreGroup label="Conto" value={scores.bill} onChange={(v) => setScores({...scores, bill: v})} />
+        <ScoreGroup label="Menù" value={scores.menu} onChange={(v) => setScores({...scores, menu: v})} />
+      </div>
+
+      {/* Footer Fissato con Punteggio */}
+      <div className="bg-slate-100 p-6 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-20 md:bottom-4 z-40">
+        <div>
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest block mb-1">Punteggio Finale</span>
+          <div className="text-4xl font-black text-slate-800 flex items-baseline gap-2">
+            🌯 {finalScore} <span className="text-lg text-slate-400 font-bold">/ 10</span>
           </div>
         </div>
-
-      </form>
+        
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => navigate('/')}
+            className="px-6 py-3 rounded-lg font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors w-full sm:w-auto"
+          >
+            Annulla
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className={`px-8 py-3 rounded-lg font-bold text-white flex items-center justify-center gap-2 w-full sm:w-auto transition-all ${saving ? 'bg-slate-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700 shadow-md hover:shadow-lg'}`}
+          >
+            {saving ? 'Salvataggio...' : <><PlusCircle size={20} /> Salva Recensione</>}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
