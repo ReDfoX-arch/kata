@@ -18,9 +18,9 @@ function App() {
         <header className="bg-white shadow-sm hidden md:block sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
-              {/* Qui inseriamo il tuo logo. w-8 h-8 lo rende un bel quadratino proporzionato */}
-              <img src="/pwa-192x192.png" alt="KATA Logo" className="w-8 h-8 rounded-lg shadow-sm" />
-              <h1 className="font-extrabold text-2xl tracking-tight text-orange-600">KATA</h1>
+              {/* Qui inseriamo il tuo logo. w-14 h-14 lo rende un bel quadratino proporzionato */}
+              <img src="/pwa-192x192.png" alt="KATA Logo" className="w-14 h-14 rounded-lg shadow-sm" />
+              <h1 className="font-extrabold text-3xl tracking-tight text-orange-600">KATA</h1>
             </Link>
             <nav className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><HomeIcon size={20} /> Home</Link>
