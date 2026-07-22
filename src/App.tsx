@@ -43,6 +43,22 @@ function App() {
             </nav>
           </div>
         </header>
+        {/* Header Mobile */}
+        <header className="bg-white shadow-sm md:hidden sticky top-0 z-50">
+          <div className="px-4 h-16 flex items-center justify-center">
+            <Link to="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <img src="/pwa-192x192.png" alt="KATA Logo" className="w-10 h-10 rounded-lg shadow-sm" />
+              <div className="flex flex-col justify-center">
+                <h1 className="font-extrabold text-2xl tracking-tight text-orange-600 leading-none">
+                  KATA
+                </h1>
+                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+                  Kebab Analizzati, Testati e Approvati
+                </span>
+              </div>
+            </Link>
+          </div>
+        </header>
 
         {/* Contenuto Principale */}
         <main className="max-w-5xl mx-auto w-full p-4">
