@@ -112,7 +112,7 @@ export default function AddReview() {
   return (
     <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-100 mt-4 mb-20 md:mb-4">
       <h2 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-        <span>✍️</span> Nuova Recensione
+        <span>✍️</span> Capo dimmi tutto...
       </h2>
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -124,7 +124,7 @@ export default function AddReview() {
           </label>
           <input 
             type="text" 
-            placeholder="Es. GUGLIELMO SCUOTIPERE"
+            placeholder="Es. GUGLIELMO SCUOTIPERA"
             value={username}
             onChange={handleUsernameChange}
             className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all uppercase placeholder:normal-case"

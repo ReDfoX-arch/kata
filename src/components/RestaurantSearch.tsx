@@ -44,7 +44,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   return (
     <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm">
       <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-3 flex items-center gap-2">
-        <MapPin size={18} className="text-orange-600" /> Cerca il Locale
+        <MapPin size={18} className="text-orange-600" /> Cerca il Kebabbaro
       </label>
       
       <div className="flex gap-2 mb-2">
