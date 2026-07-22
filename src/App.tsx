@@ -17,10 +17,18 @@ function App() {
         {/* Header Desktop */}
         <header className="bg-white shadow-sm hidden md:block sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3">
-              {/* Qui inseriamo il tuo logo. w-14 h-14 lo rende un bel quadratino proporzionato */}
+            <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
               <img src="/pwa-192x192.png" alt="KATA Logo" className="w-14 h-14 rounded-lg shadow-sm" />
-              <h1 className="font-extrabold text-3xl tracking-tight text-orange-600">KATA</h1>
+              <div className="flex flex-col justify-center">
+                {/* Titolo principale (nota il leading-none per stringere lo spazio col sottotitolo) */}
+                <h1 className="font-extrabold text-3xl tracking-tight text-orange-600 leading-none">
+                  KATA
+                </h1>
+                {/* Sottotitolo: piccolo, maiuscolo, spaziato e grigio per un look elegante e tecnico */}
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                  KATA - Kebab Analizzati, Testati e Approvati
+                </span>
+              </div>
             </Link>
             <nav className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><HomeIcon size={20} /> Home</Link>
