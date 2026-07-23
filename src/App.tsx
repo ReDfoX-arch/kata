@@ -1,16 +1,24 @@
+import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon } from 'lucide-react';
-import { useState } from 'react';
+import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon, Loader2 } from 'lucide-react';
 
-import ProfileSetup from './components/ProfileSetup';
-import Home from './pages/Home';
-import MapPage from './pages/MapPage';
-import AddReview from './pages/AddReview';
-import Rankings from './pages/Rankings';
-import Stats from './pages/Stats';
-import RestaurantPage from './pages/RestaurantPage';
-import UserPage from './pages/UserPage';
-import MyProfile from './pages/MyProfile';
+// 1. Convertiamo le importazioni statiche in importazioni dinamiche (Lazy Loading)
+const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
+const Home = lazy(() => import('./pages/Home'));
+const MapPage = lazy(() => import('./pages/MapPage'));
+const AddReview = lazy(() => import('./pages/AddReview'));
+const Rankings = lazy(() => import('./pages/Rankings'));
+const Stats = lazy(() => import('./pages/Stats'));
+const RestaurantPage = lazy(() => import('./pages/RestaurantPage'));
+const UserPage = lazy(() => import('./pages/UserPage'));
+const MyProfile = lazy(() => import('./pages/MyProfile'));
+
+// 2. Creiamo un piccolo componente di caricamento da mostrare durante il download del chunk
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-[50vh] w-full">
+    <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
+  </div>
+);
 
 function App() {
   const [hasProfile, setHasProfile] = useState(
@@ -18,8 +26,14 @@ function App() {
   );
 
   if (!hasProfile) {
-    return <ProfileSetup onComplete={() => setHasProfile(true)} />;
+    return (
+      // Aggiungiamo Suspense anche per la fase di setup
+      <Suspense fallback={<PageLoader />}>
+        <ProfileSetup onComplete={() => setHasProfile(true)} />
+      </Suspense>
+    );
   }
+
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 md:pb-0">
@@ -30,11 +44,9 @@ function App() {
             <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
               <img src="/pwa-192x192.png" alt="KATA Logo" className="w-14 h-14 rounded-lg shadow-sm" />
               <div className="flex flex-col justify-center">
-                {/* Titolo principale (nota il leading-none per stringere lo spazio col sottotitolo) */}
                 <h1 className="font-extrabold text-3xl tracking-tight text-orange-600 leading-none">
                   KATA
                 </h1>
-                {/* Sottotitolo: piccolo, maiuscolo, spaziato e grigio per un look elegante e tecnico */}
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
                   KATA - Kebab Analizzati, Testati e Approvati
                 </span>
@@ -47,13 +59,13 @@ function App() {
               <Link to="/stats" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><BarChart2 size={20} /> Statistiche</Link>
               <Link to="/me" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><UserIcon size={20} /> Profilo</Link>
               
-              {/* NUOVO PULSANTE DESKTOP QUI */}
               <Link to="/add" className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
                 <PlusCircle size={18} /> Nuova
               </Link>
             </nav>
           </div>
         </header>
+        
         {/* Header Mobile */}
         <header className="bg-white shadow-sm md:hidden sticky top-0 z-50">
           <div className="px-4 h-16 flex items-center justify-center">
@@ -73,17 +85,20 @@ function App() {
 
         {/* Contenuto Principale */}
         <main className="max-w-5xl mx-auto w-full p-4">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/map" element={<MapPage />} />
-            <Route path="/add" element={<AddReview />} />
-            <Route path="/edit/:id" element={<AddReview />} />
-            <Route path="/rankings" element={<Rankings />} />
-            <Route path="/stats" element={<Stats />} />
-            <Route path="/me" element={<MyProfile />} />
-            <Route path="/restaurant/:id" element={<RestaurantPage />} />
-            <Route path="/user/:username" element={<UserPage />} />
-          </Routes>
+          {/* 3. Avvolgiamo le Routes con Suspense */}
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/map" element={<MapPage />} />
+              <Route path="/add" element={<AddReview />} />
+              <Route path="/edit/:id" element={<AddReview />} />
+              <Route path="/rankings" element={<Rankings />} />
+              <Route path="/stats" element={<Stats />} />
+              <Route path="/me" element={<MyProfile />} />
+              <Route path="/restaurant/:id" element={<RestaurantPage />} />
+              <Route path="/user/:username" element={<UserPage />} />
+            </Routes>
+          </Suspense>
         </main>
 
         {/* Pulsante Aggiungi Mobile (Galleggiante) */}
