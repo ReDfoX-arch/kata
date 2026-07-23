@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon, Loader2 } from 'lucide-react';
 
