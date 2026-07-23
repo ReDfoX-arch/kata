@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, User as UserIcon, LogOut } from 'lucide-react';
+import { Trash2, User as UserIcon, LogOut, Loader2 } from 'lucide-react';
 
 type Profile = {
   username: string;
@@ -12,7 +12,6 @@ type Profile = {
 export default function MyProfile() {
   const navigate = useNavigate();
   
-  // Rendiamo il profile stabile (state) per evitare che il componente ricarichi ripetutamente
   const [profile, setProfile] = useState<Profile | null>(() => {
     try {
       return JSON.parse(localStorage.getItem('kata_profile') || 'null');
@@ -22,6 +21,7 @@ export default function MyProfile() {
   });
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(profile?.avatar || null);
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
@@ -60,7 +60,7 @@ export default function MyProfile() {
     );
   }
 
-  const handleAvatarChange = (file: File | null) => {
+  const handleAvatarChange = async (file: File | null) => {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
@@ -72,33 +72,48 @@ export default function MyProfile() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        setAvatar(result);
-        if (profile) {
-          const updatedProfile = { ...profile, avatar: result };
-          localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
-          setProfile(updatedProfile);
-        }
+    try {
+      setUploadingAvatar(true);
+      setError('');
+      
+      // Creiamo un nome file univoco per evitare cache del browser (usando Date.now())
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${profile.userId}-${Date.now()}.${fileExt}`;
+      
+      // 1. Carica l'immagine nel bucket "avatars" su Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
 
-        try {
-          const { error: updateError } = await supabase
-            .from('users')
-            .update({ avatar: result })
-            .eq('secret_id', profile.userId);
+      if (uploadError) throw uploadError;
 
-          if (updateError && updateError.code !== '42703') throw updateError;
-        } catch (err: any) {
-          if (err?.code !== '42703') {
-            console.error(err);
-            setError('Errore nel salvataggio della foto profilo.');
-          }
-        }
-      }
-    };
-    reader.readAsDataURL(file);
+      // 2. Ottieni l'URL pubblico dell'immagine caricata
+      const { data: publicUrlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const publicUrl = publicUrlData.publicUrl;
+
+      // 3. Aggiorna il database con il nuovo URL
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ avatar: publicUrl })
+        .eq('secret_id', profile.userId);
+
+      if (updateError) throw updateError;
+
+      // 4. Aggiorna lo stato locale e il localStorage
+      setAvatar(publicUrl);
+      const updatedProfile = { ...profile, avatar: publicUrl };
+      localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
+      setProfile(updatedProfile);
+
+    } catch (err: any) {
+      console.error(err);
+      setError('Errore durante il caricamento della foto profilo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
 
@@ -113,7 +128,6 @@ export default function MyProfile() {
     setError('');
 
     try {
-      // Verifica PIN
       const { data: u } = await supabase
         .from('users')
         .select('pin_code')
@@ -125,7 +139,6 @@ export default function MyProfile() {
         return;
       }
 
-      // Elimina recensioni
       const { error: delReviewsErr } = await supabase
         .from('reviews')
         .delete()
@@ -133,7 +146,6 @@ export default function MyProfile() {
 
       if (delReviewsErr) throw delReviewsErr;
 
-      // Elimina utente
       const { error: delUserErr } = await supabase
         .from('users')
         .delete()
@@ -141,7 +153,6 @@ export default function MyProfile() {
 
       if (delUserErr) throw delUserErr;
 
-      // Pulisci localStorage e ricarica per far apparire il setup
       localStorage.removeItem('kata_profile');
       alert('Profilo eliminato. Tornerai alla configurazione iniziale.');
       window.location.reload();
@@ -189,11 +200,15 @@ export default function MyProfile() {
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <label className="cursor-pointer">
-            {avatar ? (
-              <img src={avatar} alt="Avatar profilo" className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" />
+          <label className={`relative ${!uploadingAvatar ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}>
+            {uploadingAvatar ? (
+              <div className="w-20 h-20 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center shadow-lg">
+                <Loader2 size={32} className="text-white animate-spin" />
+              </div>
+            ) : avatar ? (
+              <img src={avatar} alt="Avatar profilo" className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg bg-white" />
             ) : (
-              <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm">
+              <div className="w-20 h-20 rounded-full bg-white/20 border-4 border-transparent flex items-center justify-center backdrop-blur-sm shadow-lg">
                 <UserIcon size={40} className="text-white" />
               </div>
             )}
@@ -201,8 +216,15 @@ export default function MyProfile() {
               type="file"
               accept="image/*"
               className="hidden"
+              disabled={uploadingAvatar}
               onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
             />
+            {/* Piccolo badge "+"" per far capire che è cliccabile */}
+            {!uploadingAvatar && (
+               <div className="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1 border-2 border-slate-900">
+                  <span className="block text-white text-xs font-bold leading-none">+</span>
+               </div>
+            )}
           </label>
           <div>
             <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
@@ -257,6 +279,7 @@ export default function MyProfile() {
         <p className="text-slate-500">Non hai ancora scritto recensioni.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ... il resto del componente rimane invariato */}
           {reviews.map((rev) => (
             <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-start mb-2">

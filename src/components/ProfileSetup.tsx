@@ -1,34 +1,13 @@
 import { useState } from 'react';
 import { UserCircle, Lock, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase'; // Assicurati che il percorso sia corretto
+import { supabase } from '../lib/supabase';
 
 export default function ProfileSetup({ onComplete }: { onComplete: () => void }) {
   const [mode, setMode] = useState<'new' | 'login'>('new');
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
-  const [avatar, setAvatar] = useState<string>('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const handleAvatarChange = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError('Scegli un file immagine valido.');
-      return;
-    }
-    if (file.size > 2_000_000) {
-      setError("L'immagine deve essere inferiore a 2 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') {
-        setAvatar(result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   const handleSubmit = async () => {
     if (name.trim().length < 2) {
@@ -61,66 +40,32 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
 
         // 2. Se è libero, creiamo l'account e l'ID Segreto
         const newSecretId = crypto.randomUUID();
-        const insertPayload: any = {
-          username: upperUsername,
-          pin_code: pin,
-          secret_id: newSecretId
-        };
-        if (avatar) insertPayload.avatar = avatar;
-
-        let { error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from('users')
-          .insert(insertPayload);
+          .insert({
+            username: upperUsername,
+            pin_code: pin,
+            secret_id: newSecretId
+          });
 
-        if (insertError) {
-          // Se la colonna avatar non è ancora presente nel database,
-          // ritentiamo senza il campo e continuiamo.
-          if (insertError.code === '42703') {
-            const { error: retryError } = await supabase
-              .from('users')
-              .insert({
-                username: upperUsername,
-                pin_code: pin,
-                secret_id: newSecretId
-              });
-            if (retryError) throw retryError;
-          } else {
-            throw insertError;
-          }
-        }
+        if (insertError) throw insertError;
 
         // 3. Salviamo nel telefono
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
           userId: newSecretId,
-          avatar: avatar || null
+          avatar: null
         }));
         onComplete();
 
       } else {
         // --- MODALITÀ ACCESSO (LOGIN DA ALTRO DISPOSITIVO) ---
-        let user: any = null;
-        let loginError: any = null;
-
-        ({ data: user, error: loginError } = await supabase
+        const { data: user, error: loginError } = await supabase
           .from('users')
           .select('secret_id, avatar')
           .eq('username', upperUsername)
           .eq('pin_code', pin)
-          .maybeSingle());
-
-        if (loginError && loginError.code === '42703') {
-          const { data: fallbackUser, error: fallbackError } = await supabase
-            .from('users')
-            .select('secret_id')
-            .eq('username', upperUsername)
-            .eq('pin_code', pin)
-            .maybeSingle();
-
-          if (fallbackError) throw fallbackError;
-          user = fallbackUser;
-          loginError = null;
-        }
+          .maybeSingle();
 
         if (loginError) throw loginError;
 
@@ -130,21 +75,11 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           return;
         }
 
-        // Se l'utente carica un avatar durante il login, proviamo ad aggiornarlo nel database.
-        if (avatar) {
-          const { error: updateError } = await supabase
-            .from('users')
-            .update({ avatar })
-            .eq('secret_id', user.secret_id);
-
-          if (updateError && updateError.code !== '42703') throw updateError;
-        }
-
         // Se corretto, scarichiamo l'ID segreto e lo salviamo nel nuovo dispositivo
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
           userId: user.secret_id,
-          avatar: avatar || user.avatar || null
+          avatar: user.avatar || null
         }));
         onComplete();
       }
@@ -183,28 +118,6 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         )}
 
         <div className="space-y-4 text-left">
-          <div>
-            <label className="block font-bold text-slate-700 uppercase tracking-wide text-xs mb-1">
-              Foto profilo (dalla galleria)
-            </label>
-            <label className="w-full cursor-pointer">
-              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-orange-500 transition-colors bg-slate-50">
-                {avatar ? (
-                  <img src={avatar} alt="Anteprima avatar" className="mx-auto h-28 w-28 rounded-full object-cover" />
-                ) : (
-                  <p className="text-slate-500">Tocca per scegliere un'immagine dal tuo dispositivo</p>
-                )}
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
-              />
-            </label>
-            <p className="text-xs text-slate-400 mt-2">Scegli una foto dal cellulare o dal computer. Max 2MB.</p>
-          </div>
-
           <div>
             <label className="block font-bold text-slate-700 uppercase tracking-wide text-xs mb-1">
               Il tuo Nickname
@@ -247,7 +160,6 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           {loading ? 'Attendere...' : (mode === 'new' ? 'Crea Profilo' : 'Accedi')}
         </button>
 
-        {/* Pulsante per cambiare tra Registrazione e Accesso */}
         <button 
           onClick={() => {
             setMode(mode === 'new' ? 'login' : 'new');
