@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle } from 'lucide-react';
+import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import ProfileSetup from './components/ProfileSetup';
@@ -10,6 +10,7 @@ import Rankings from './pages/Rankings';
 import Stats from './pages/Stats';
 import RestaurantPage from './pages/RestaurantPage';
 import UserPage from './pages/UserPage';
+import MyProfile from './pages/MyProfile';
 
 function App() {
   const [hasProfile, setHasProfile] = useState(
@@ -44,6 +45,7 @@ function App() {
               <Link to="/map" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><MapIcon size={20} /> Mappa</Link>
               <Link to="/rankings" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><Trophy size={20} /> Classifica</Link>
               <Link to="/stats" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><BarChart2 size={20} /> Statistiche</Link>
+              <Link to="/me" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><UserIcon size={20} /> Profilo</Link>
               
               {/* NUOVO PULSANTE DESKTOP QUI */}
               <Link to="/add" className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
@@ -77,6 +79,7 @@ function App() {
             <Route path="/add" element={<AddReview />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/stats" element={<Stats />} />
+            <Route path="/me" element={<MyProfile />} />
             <Route path="/restaurant/:id" element={<RestaurantPage />} />
             <Route path="/user/:username" element={<UserPage />} />
           </Routes>
@@ -97,6 +100,7 @@ function App() {
           <Link to="/map" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><MapIcon size={24} /><span className="text-[10px] mt-1 font-medium">Mappa</span></Link>
           <Link to="/rankings" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><Trophy size={24} /><span className="text-[10px] mt-1 font-medium">Top</span></Link>
           <Link to="/stats" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><BarChart2 size={24} /><span className="text-[10px] mt-1 font-medium">Stats</span></Link>
+          <Link to="/me" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><UserIcon size={24} /><span className="text-[10px] mt-1 font-medium">Profilo</span></Link>
         </nav>
 
       </div>
