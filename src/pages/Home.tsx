@@ -16,7 +16,7 @@ export default function Home() {
     try {
       // 1. Scarichiamo tutti i ristoranti e tutte le recensioni
       const { data: rests } = await supabase.from('restaurants').select('*');
-      const { data: revs } = await supabase.from('reviews').select('*, restaurants(name, city)').order('created_at', { ascending: false });
+      const { data: revs } = await supabase.from('reviews').select('*, restaurants(id, name, city, country, lat, lng)').order('created_at', { ascending: false });
 
       if (!rests || !revs) return;
 
@@ -27,24 +27,44 @@ export default function Home() {
           ? rRevs.reduce((acc, curr) => acc + Number(curr.average_score), 0) / rRevs.length 
           : 0;
         return { ...r, avgScore: avg.toFixed(1), reviewCount: rRevs.length };
-      }).filter(r => r.reviewCount > 0); // Mostriamo solo chi ha almeno un voto
+      }).filter(r => r.reviewCount > 0);
 
-      // Ordiniamo dal voto più alto al più basso
       stats.sort((a, b) => b.avgScore - a.avgScore);
 
-      setTopRestaurants(stats.slice(0, 3)); // Prendiamo i primi 3
+      setTopRestaurants(stats.slice(0, 3));
 
-      // Prendiamo le ultime 10 recensioni e risolviamo i nickname correnti dei relativi user_id
+      // Prendiamo le ultime 10 recensioni e risolviamo i dati mancanti
       const recent = revs.slice(0, 10);
       const userIds = Array.from(new Set(recent.map(r => r.user_id).filter(Boolean)));
-      let usersMap: Record<string, string> = {};
+      let usersMap: Record<string, any> = {};
       if (userIds.length > 0) {
-        const { data: users } = await supabase.from('users').select('username, secret_id').in('secret_id', userIds);
-        if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: u.username }), {});
+        const { data: users } = await supabase.from('users').select('username, secret_id, avatar').in('secret_id', userIds);
+        if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: { username: u.username, avatar: u.avatar } }), {});
       }
-      const mappedRecent = recent.map((r: any) => ({ ...r, display_username: usersMap[r.user_id] || r.username }));
+      
+      // Mappiamo le recensioni - se il join con restaurants fallisce, ricarichiamo il ristorante
+      const mappedRecent = await Promise.all(recent.map(async (r: any) => {
+        let restaurant = r.restaurants;
+        
+        // Se il join fallì, ricarichiamo il ristorante direttamente
+        if (!restaurant || !restaurant.id) {
+          const { data: rest } = await supabase
+            .from('restaurants')
+            .select('*')
+            .eq('id', r.restaurant_id)
+            .maybeSingle();
+          restaurant = rest;
+        }
+        
+        return {
+          ...r,
+          restaurants: restaurant,
+          display_username: usersMap[r.user_id]?.username || r.username,
+          user_avatar: usersMap[r.user_id]?.avatar || null
+        };
+      }));
 
-      setRecentReviews(mappedRecent); // Prendiamo le ultime 10 recensioni (arricchite)
+      setRecentReviews(mappedRecent);
 
     } catch (error) {
       console.error("Errore nel caricamento:", error);
@@ -123,8 +143,14 @@ export default function Home() {
                   <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
                   <div className="flex-1">
                     <h4 className="font-bold text-slate-800">
-                      <ClickableRestaurant restaurantId={rev.restaurants.id} restaurantName={rev.restaurants.name} className="text-slate-800 font-bold" />
-                      <span className="text-slate-400 font-normal text-sm"> ({rev.restaurants.city})</span>
+                      {rev.restaurants ? (
+                        <>
+                          <ClickableRestaurant restaurantId={rev.restaurants.id} restaurantName={rev.restaurants.name} className="text-slate-800 font-bold" />
+                          <span className="text-slate-400 font-normal text-sm"> ({rev.restaurants.city})</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-400">Ristorante non disponibile</span>
+                      )}
                     </h4>
                     <p className="text-sm text-slate-500 mt-1">
                       Recensito da <ClickableUsername username={rev.display_username || rev.username} />

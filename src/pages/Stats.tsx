@@ -7,15 +7,18 @@ export default function Stats() {
   const [stats, setStats] = useState({
     totalReviews: 0,
     totalRestaurants: 0,
+    totalUsers: 0,
     globalAvg: '0.0',
     bestKebab: null as any,
     worstKebab: null as any,
     topUsers: [] as any[],
     uniqueCities: 0,
     uniqueCountries: 0,
-    uniqueContinents: 0
+    uniqueContinents: 0,
+    allRestaurants: [] as any[]
   });
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('avgScore'); // 'avgScore' o 'reviewCount'
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -29,7 +32,7 @@ export default function Stats() {
         const calculatedRests = rests.map(r => {
           const rRevs = revs.filter(rev => rev.restaurant_id === r.id);
           const avg = rRevs.length > 0 ? rRevs.reduce((acc, curr) => acc + Number(curr.average_score), 0) / rRevs.length : 0;
-          return { ...r, avgScore: avg };
+          return { ...r, avgScore: avg, reviewCount: rRevs.length };
         }).filter(r => r.avgScore > 0);
 
         calculatedRests.sort((a, b) => b.avgScore - a.avgScore);
@@ -47,20 +50,24 @@ export default function Stats() {
         const uniqueCities = new Set(rests.map((r: any) => r.city)).size;
         const uniqueCountries = new Set(rests.map((r: any) => r.country)).size;
         
-        // Mapping semplice di paesi a continenti
+        // Mapping paesi a continenti (ampliato e corretto)
         const countryToContinent: Record<string, string> = {
           'Italia': 'Europa', 'Francia': 'Europa', 'Spagna': 'Europa', 'Germania': 'Europa', 'Portogallo': 'Europa',
           'Grecia': 'Europa', 'Polonia': 'Europa', 'Svizzera': 'Europa', 'Svezia': 'Europa', 'Norvegia': 'Europa',
           'Danimarca': 'Europa', 'Finlandia': 'Europa', 'Irlanda': 'Europa', 'Regno Unito': 'Europa', 'Paesi Bassi': 'Europa',
           'Belgio': 'Europa', 'Austria': 'Europa', 'Repubblica Ceca': 'Europa', 'Ungheria': 'Europa', 'Romania': 'Europa',
-          'Bulgaria': 'Europa', 'Croazia': 'Europa', 'Serbia': 'Europa', 'Bosnia': 'Europa',
-          'Giappone': 'Asia', 'Cina': 'Asia', 'India': 'Asia', 'Corea del Sud': 'Asia', 'Tailandia': 'Asia',
-          'Vietnam': 'Asia', 'Indonesia': 'Asia', 'Pakistan': 'Asia', 'Malesia': 'Asia', 'Singapore': 'Asia',
-          'Taiwan': 'Asia', 'Hong Kong': 'Asia', 'Filippine': 'Asia', 'Bangladesh': 'Asia', 'Laos': 'Asia',
+          'Bulgaria': 'Europa', 'Croazia': 'Europa', 'Serbia': 'Europa', 'Bosnia': 'Europa', 'Lituania': 'Europa',
+          'Estonia': 'Europa', 'Lettonia': 'Europa', 'Slovenia': 'Europa', 'Slovacchia': 'Europa',
+          'Giappone': 'Asia', 'Cina': 'Asia', 'India': 'Asia', 'Corea del Sud': 'Asia', 'Corea del Nord': 'Asia', 
+          'Tailandia': 'Asia', 'Vietnam': 'Asia', 'Indonesia': 'Asia', 'Pakistan': 'Asia', 'Malesia': 'Asia', 
+          'Singapore': 'Asia', 'Taiwan': 'Asia', 'Hong Kong': 'Asia', 'Filippine': 'Asia', 'Bangladesh': 'Asia', 
+          'Laos': 'Asia', 'Myanmar': 'Asia', 'Cambogia': 'Asia', 'Nepal': 'Asia', 'Sri Lanka': 'Asia',
           'USA': 'Nord America', 'Canada': 'Nord America', 'Messico': 'Nord America',
           'Brasile': 'Sud America', 'Argentina': 'Sud America', 'Cile': 'Sud America', 'Peru': 'Sud America',
+          'Colombia': 'Sud America', 'Venezuela': 'Sud America', 'Ecuador': 'Sud America', 'Bolivia': 'Sud America',
           'Australia': 'Oceania', 'Nuova Zelanda': 'Oceania',
-          'Egitto': 'Africa', 'Sudafrica': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Marocco': 'Africa'
+          'Egitto': 'Africa', 'Sudafrica': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Marocco': 'Africa',
+          'Tunisia': 'Africa', 'Etiopia': 'Africa', 'Tanzania': 'Africa'
         };
 
         const uniqueContinents = new Set(
@@ -72,13 +79,15 @@ export default function Stats() {
         setStats({
           totalReviews: revs.length,
           totalRestaurants: calculatedRests.length,
+          totalUsers: users ? users.length : 0,
           globalAvg: (globalSum / revs.length).toFixed(1),
           bestKebab: calculatedRests[0],
           worstKebab: calculatedRests[calculatedRests.length - 1],
           topUsers: userStats,
           uniqueCities,
           uniqueCountries,
-          uniqueContinents
+          uniqueContinents,
+          allRestaurants: calculatedRests
         });
       }
       setLoading(false);
@@ -95,7 +104,7 @@ export default function Stats() {
       </h2>
 
       {/* Numeri Globali */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
           <Hash className="text-slate-400 mb-2" />
           <p className="text-3xl font-black text-slate-800">{stats.totalReviews}</p>
@@ -106,7 +115,12 @@ export default function Stats() {
           <p className="text-3xl font-black text-slate-800">{stats.totalRestaurants}</p>
           <p className="text-xs font-bold text-slate-500 uppercase">Locali Esplorati</p>
         </div>
-        <div className="bg-orange-600 p-5 rounded-xl shadow-md flex flex-col items-center justify-center text-center text-white col-span-2 md:col-span-1">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
+          <Trophy className="text-slate-400 mb-2" />
+          <p className="text-3xl font-black text-slate-800">{stats.totalUsers}</p>
+          <p className="text-xs font-bold text-slate-500 uppercase">Utenti Registrati</p>
+        </div>
+        <div className="bg-orange-600 p-5 rounded-xl shadow-md flex flex-col items-center justify-center text-center text-white">
           <span className="text-2xl mb-1">🌯</span>
           <p className="text-4xl font-black">{stats.globalAvg}</p>
           <p className="text-xs font-bold text-orange-200 uppercase mt-1">Media Globale KATA</p>
@@ -173,6 +187,60 @@ export default function Stats() {
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recensioni</p>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tabella Ristoranti con Sorting */}
+      {stats.allRestaurants.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-2xl font-extrabold text-slate-800">Tutti i Locali</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSortBy('avgScore')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition ${
+                  sortBy === 'avgScore'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                }`}
+              >
+                Per Valutazione
+              </button>
+              <button
+                onClick={() => setSortBy('reviewCount')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition ${
+                  sortBy === 'reviewCount'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                }`}
+              >
+                Per Numero Recensioni
+              </button>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {stats.allRestaurants
+              .sort((a, b) => (sortBy === 'avgScore' ? b.avgScore - a.avgScore : b.reviewCount - a.reviewCount))
+              .map((restaurant) => (
+                <div key={restaurant.id} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex items-center justify-between hover:shadow-md transition">
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-800">{restaurant.name}</p>
+                    <p className="text-sm text-slate-600">{restaurant.city}</p>
+                  </div>
+                  <div className="flex gap-6 items-center">
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-slate-800">{restaurant.avgScore.toFixed(1)}</p>
+                      <p className="text-xs font-bold text-slate-500">Valutazione</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-black text-orange-600">{restaurant.reviewCount}</p>
+                      <p className="text-xs font-bold text-slate-500">Recensioni</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       )}

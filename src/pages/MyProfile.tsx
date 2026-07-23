@@ -80,14 +80,27 @@ export default function MyProfile() {
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const result = reader.result;
       if (typeof result === 'string') {
-        setAvatar(result);
-        if (profile) {
-          const updatedProfile = { ...profile, avatar: result };
-          localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
-          setProfile(updatedProfile);
+        try {
+          // Salva avatar su Supabase
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ avatar: result })
+            .eq('secret_id', profile.userId);
+
+          if (updateError) throw updateError;
+
+          setAvatar(result);
+          if (profile) {
+            const updatedProfile = { ...profile, avatar: result };
+            localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
+            setProfile(updatedProfile);
+          }
+        } catch (err: any) {
+          console.error(err);
+          setError('Errore nel salvataggio della foto profilo.');
         }
       }
     };
@@ -102,18 +115,26 @@ export default function MyProfile() {
     }
 
     const upper = trimmed.toUpperCase();
+    
+    // Se il nuovo nome è uguale al vecchio, non fare nulla
+    if (upper === profile.username) {
+      setError('Inserisci un nome diverso da quello attuale.');
+      return;
+    }
+
     setSavingName(true);
     setError('');
 
     try {
-      // Controlla se esiste un altro utente con lo stesso username
+      // Controlla se esiste un ALTRO utente con lo stesso username (escludi l'utente corrente)
       const { data: existing } = await supabase
         .from('users')
         .select('secret_id')
         .eq('username', upper)
+        .neq('secret_id', profile.userId)
         .maybeSingle();
 
-      if (existing && existing.secret_id !== profile.userId) {
+      if (existing) {
         setError('Questo nickname è già in uso da un altro utente.');
         setSavingName(false);
         return;

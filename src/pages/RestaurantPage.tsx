@@ -10,6 +10,7 @@ export default function RestaurantPage() {
   const [restaurant, setRestaurant] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bannerImage, setBannerImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRestaurantData = async () => {
@@ -19,7 +20,12 @@ export default function RestaurantPage() {
       // Scarica recensioni per questo ristorante
       const { data: revsData } = await supabase.from('reviews').select('*').eq('restaurant_id', id).order('created_at', { ascending: false });
 
-      if (restData) setRestaurant(restData);
+      if (restData) {
+        setRestaurant(restData);
+        // Genera URL per hero banner usando OpenStreetMap static map
+        const mapImageUrl = `https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=300&center=lonlat:${restData.lng},${restData.lat}&zoom=15`;
+        setBannerImage(mapImageUrl);
+      }
 
       if (revsData) {
         // Otteniamo gli user_id presenti e cerchiamo i nickname correnti nella tabella users
@@ -54,6 +60,19 @@ export default function RestaurantPage() {
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm">
         <ArrowLeft size={16} /> Torna indietro
       </button>
+
+      {/* Hero Banner */}
+      {bannerImage && (
+        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg">
+          <img 
+            src={bannerImage} 
+            alt={restaurant.name}
+            className="w-full h-full object-cover"
+            onError={() => setBannerImage(null)}
+          />
+          <div className="absolute inset-0 bg-black/30"></div>
+        </div>
+      )}
 
       {/* Intestazione Ristorante */}
       <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between md:items-center gap-6">

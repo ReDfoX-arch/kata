@@ -66,7 +66,8 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           .insert({ 
             username: upperUsername, 
             pin_code: pin, 
-            secret_id: newSecretId 
+            secret_id: newSecretId,
+            avatar: avatar || null
           });
 
         if (insertError) throw insertError;
@@ -83,7 +84,7 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         // --- MODALITÀ ACCESSO (LOGIN DA ALTRO DISPOSITIVO) ---
         const { data: user, error: loginError } = await supabase
           .from('users')
-          .select('secret_id')
+          .select('secret_id, avatar')
           .eq('username', upperUsername)
           .eq('pin_code', pin)
           .maybeSingle();
@@ -96,11 +97,21 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           return;
         }
 
+        // Se nuovo avatar caricato, aggiorna il database
+        if (avatar) {
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ avatar })
+            .eq('secret_id', user.secret_id);
+          
+          if (updateError) throw updateError;
+        }
+
         // Se corretto, scarichiamo l'ID segreto e lo salviamo nel nuovo dispositivo
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
           userId: user.secret_id,
-          avatar: avatar || null
+          avatar: avatar || user.avatar || null
         }));
         onComplete();
       }
