@@ -9,6 +9,7 @@ export default function AddReview() {
   
   // Stati per memorizzare i dati inseriti dall'utente
   const [username, setUsername] = useState('');
+  const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]); // NUOVO: Stato per la data
   const [restaurant, setRestaurant] = useState<{name: string; city: string; country: string; lat: number; lng: number} | null>(null);
   const [scores, setScores] = useState({
     location: 0,
@@ -82,6 +83,17 @@ export default function AddReview() {
           restaurantId = newRest.id;
         }
 
+        // Formattazione sicura per la data da inviare al database
+        let dateToSave = new Date().toISOString();
+        if (reviewDate) {
+          const parsedDate = new Date(reviewDate);
+          if (!isNaN(parsedDate.getTime())) {
+            const now = new Date();
+            parsedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+            dateToSave = parsedDate.toISOString();
+          }
+        }
+
         // 3. Inseriamo la recensione effettiva
         const { error: reviewError } = await supabase
           .from('reviews')
@@ -91,7 +103,8 @@ export default function AddReview() {
             score_location: scores.location,
             score_offer: scores.offer,
             score_bill: scores.bill,
-            score_menu: scores.menu
+            score_menu: scores.menu,
+            created_at: dateToSave // NUOVO: Salvataggio data custom
           });
 
         if (reviewError) throw reviewError;
@@ -101,9 +114,9 @@ export default function AddReview() {
         // Riporta l'utente alla Home Page
         navigate('/');
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Errore durante il salvataggio:", error);
-        alert("Si è verificato un errore di connessione col database.");
+        alert(`Si è verificato un errore col database: ${error.message || "Errore sconosciuto"}`);
       } finally {
         setIsSubmitting(false);
       }
@@ -117,20 +130,36 @@ export default function AddReview() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         
-        {/* Sezione Username */}
-        <div>
-          <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
-            Il tuo Username
-          </label>
-          <input 
-            type="text" 
-            placeholder="Es. GUGLIELMO SCUOTIPERA"
-            value={username}
-            onChange={handleUsernameChange}
-            className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all uppercase placeholder:normal-case"
-            required
-          />
-          <p className="text-xs text-slate-500 mt-2">Scegli un nome. Sarà visibile pubblicamente.</p>
+        {/* Sezione Username e Data */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
+              Il tuo Username
+            </label>
+            <input 
+              type="text" 
+              placeholder="Es. GUGLIELMO SCUOTIPERA"
+              value={username}
+              onChange={handleUsernameChange}
+              className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all uppercase placeholder:normal-case"
+              required
+            />
+            <p className="text-xs text-slate-500 mt-2">Scegli un nome. Sarà visibile pubblicamente.</p>
+          </div>
+
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
+              Data Visita
+            </label>
+            <input 
+              type="date" 
+              value={reviewDate}
+              onChange={(e) => setReviewDate(e.target.value)}
+              className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+              required
+            />
+            <p className="text-xs text-slate-500 mt-2">Quando hai provato questo kebab?</p>
+          </div>
         </div>
 
         {/* Qui andrà il componente per cercare/selezionare il ristorante */}
