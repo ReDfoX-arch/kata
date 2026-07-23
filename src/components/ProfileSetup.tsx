@@ -99,7 +99,7 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         
         <div>
           <h1 className="text-3xl font-extrabold text-slate-800 mb-2">
-            {mode === 'new' ? 'Benvenuto in KATA!' : 'Bentornato!'}
+            {mode === 'new' ? 'Benvenuto in KATA!' : 'Ciao Capo!'}
           </h1>
           <p className="text-slate-500 text-sm">
             {mode === 'new' 
