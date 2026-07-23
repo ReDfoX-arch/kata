@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle } from 'lucide-react';
 
+import ProfileSetup from './components/ProfileSetup';
 import Home from './pages/Home';
 import MapPage from './pages/MapPage';
 import AddReview from './pages/AddReview';
@@ -10,6 +11,13 @@ import RestaurantPage from './pages/RestaurantPage';
 import UserPage from './pages/UserPage';
 
 function App() {
+  const [hasProfile, setHasProfile] = useState(
+    localStorage.getItem('kata_profile') !== null
+  );
+
+  if (!hasProfile) {
+    return <ProfileSetup onComplete={() => setHasProfile(true)} />;
+  }
   return (
     <Router>
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 md:pb-0">

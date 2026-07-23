@@ -82,7 +82,7 @@ export default function RestaurantPage() {
                   <p className="font-black text-slate-700">{rev.score_location}</p>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Offerta</p>
+                  <p className="text-xs text-slate-500 font-bold uppercase">Menù</p>
                   <p className="font-black text-slate-700">{rev.score_offer}</p>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg text-center">
@@ -90,7 +90,7 @@ export default function RestaurantPage() {
                   <p className="font-black text-slate-700">{rev.score_bill}</p>
                 </div>
                 <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Menù</p>
+                  <p className="text-xs text-slate-500 font-bold uppercase">Gusto</p>
                   <p className="font-black text-slate-700">{rev.score_menu}</p>
                 </div>
               </div>

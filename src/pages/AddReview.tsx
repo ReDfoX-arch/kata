@@ -8,7 +8,7 @@ export default function AddReview() {
   const navigate = useNavigate();
   
   // Stati per memorizzare i dati inseriti dall'utente
-  const [username, setUsername] = useState('');
+  const profile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
   const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]); // NUOVO: Stato per la data
   const [restaurant, setRestaurant] = useState<{name: string; city: string; country: string; lat: number; lng: number} | null>(null);
   const [scores, setScores] = useState({
@@ -43,8 +43,7 @@ export default function AddReview() {
       setIsSubmitting(true);
 
       try {
-        const upperUsername = username.toUpperCase();
-
+        const upperUsername = profile.username;
         // 1. Salviamo o confermiamo l'utente (Upsert: aggiorna se esiste, inserisce se non esiste)
         const { error: userError } = await supabase
           .from('users')
@@ -100,11 +99,12 @@ export default function AddReview() {
           .insert({
             restaurant_id: restaurantId,
             username: upperUsername,
+            user_id: profile.userId, // <--- LA RIGA MAGICA
             score_location: scores.location,
             score_offer: scores.offer,
             score_bill: scores.bill,
             score_menu: scores.menu,
-            created_at: dateToSave // NUOVO: Salvataggio data custom
+            created_at: dateToSave
           });
 
         if (reviewError) throw reviewError;
@@ -132,21 +132,6 @@ export default function AddReview() {
         
         {/* Sezione Username e Data */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
-              Il tuo Username
-            </label>
-            <input 
-              type="text" 
-              placeholder="Es. GUGLIELMO SCUOTIPERA"
-              value={username}
-              onChange={handleUsernameChange}
-              className="w-full text-lg p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all uppercase placeholder:normal-case"
-              required
-            />
-            <p className="text-xs text-slate-500 mt-2">Scegli un nome. Sarà visibile pubblicamente.</p>
-          </div>
-
           <div>
             <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
               Data Visita

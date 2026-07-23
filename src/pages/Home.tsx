@@ -7,6 +7,7 @@ export default function Home() {
   const [topRestaurants, setTopRestaurants] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const myProfile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
 
   const fetchData = async () => {
     setLoading(true);
@@ -118,14 +119,18 @@ export default function Home() {
                   <div className="text-xl font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">
                     🌯 {rev.average_score}
                   </div>
-                  <button 
+
+                  {review.user_id === myProfile.userId && (
+                    <button 
                     onClick={() => handleDelete(rev.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors flex items-center gap-1"
-                    title="Elimina recensione"
-                  >
-                    <Trash2 size={18} />
-                    <span className="text-sm font-bold sm:hidden">Elimina</span>
-                  </button>
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors flex items-center gap-1"
+                      title="Elimina recensione"
+                    >
+                      <Trash2 size={18} />
+                      <span className="text-sm font-bold sm:hidden">Elimina</span>
+                    </button>
+                  )}
+
                 </div>
               </div>
             ))
