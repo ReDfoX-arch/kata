@@ -12,11 +12,24 @@ export default function UserPage() {
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
-      // Scarica tutte le recensioni dell'utente, includendo i dati del ristorante associato
+      // Trova l'utente nella tabella users usando il nickname
+      const { data: user } = await supabase
+        .from('users')
+        .select('secret_id')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (!user) {
+        setReviews([]);
+        setLoading(false);
+        return;
+      }
+
+      // Scarica tutte le recensioni dell'utente usando user_id (più affidabile)
       const { data } = await supabase
         .from('reviews')
         .select('*, restaurants(id, name, city)')
-        .eq('username', username)
+        .eq('user_id', user.secret_id)
         .order('created_at', { ascending: false });
 
       if (data) setReviews(data);

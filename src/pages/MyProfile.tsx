@@ -84,14 +84,6 @@ export default function MyProfile() {
 
       if (updateUserError) throw updateUserError;
 
-      // Aggiorna anche il campo username nelle recensioni
-      const { error: updateReviewsError } = await supabase
-        .from('reviews')
-        .update({ username: upper })
-        .eq('user_id', profile.userId);
-
-      if (updateReviewsError) throw updateReviewsError;
-
       // Aggiorna localStorage
       const newProfile = { ...profile, username: upper };
       localStorage.setItem('kata_profile', JSON.stringify(newProfile));

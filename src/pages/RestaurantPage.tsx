@@ -19,7 +19,23 @@ export default function RestaurantPage() {
       const { data: revsData } = await supabase.from('reviews').select('*').eq('restaurant_id', id).order('created_at', { ascending: false });
 
       if (restData) setRestaurant(restData);
-      if (revsData) setReviews(revsData);
+
+      if (revsData) {
+        // Otteniamo gli user_id presenti e cerchiamo i nickname correnti nella tabella users
+        const userIds = Array.from(new Set(revsData.map((r: any) => r.user_id).filter(Boolean)));
+        let usersMap: Record<string, string> = {};
+        if (userIds.length > 0) {
+          const { data: users } = await supabase.from('users').select('username, secret_id').in('secret_id', userIds);
+          if (users) {
+            usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: u.username }), {});
+          }
+        }
+
+        // Mappiamo le recensioni per usare il nickname corrente (fallback a rev.username)
+        const mapped = revsData.map((r: any) => ({ ...r, display_username: usersMap[r.user_id] || r.username }));
+        setReviews(mapped);
+      }
+
       setLoading(false);
     };
     fetchRestaurantData();
@@ -63,10 +79,10 @@ export default function RestaurantPage() {
           {reviews.map((rev) => (
             <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
-                <Link to={`/user/${rev.username}`} className="flex items-center gap-2 group cursor-pointer">
+                <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer">
                   <div className="bg-orange-100 p-2 rounded-full text-orange-600 group-hover:bg-orange-200 transition-colors"><User size={20} /></div>
                   <div>
-                    <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.username}</h3>
+                    <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.display_username || rev.username}</h3>
                     <p className="text-xs text-slate-400">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
                   </div>
                 </Link>

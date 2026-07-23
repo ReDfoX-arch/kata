@@ -31,7 +31,18 @@ export default function Home() {
       stats.sort((a, b) => b.avgScore - a.avgScore);
 
       setTopRestaurants(stats.slice(0, 3)); // Prendiamo i primi 3
-      setRecentReviews(revs.slice(0, 10)); // Prendiamo le ultime 10 recensioni
+
+      // Prendiamo le ultime 10 recensioni e risolviamo i nickname correnti dei relativi user_id
+      const recent = revs.slice(0, 10);
+      const userIds = Array.from(new Set(recent.map(r => r.user_id).filter(Boolean)));
+      let usersMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: users } = await supabase.from('users').select('username, secret_id').in('secret_id', userIds);
+        if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: u.username }), {});
+      }
+      const mappedRecent = recent.map((r: any) => ({ ...r, display_username: usersMap[r.user_id] || r.username }));
+
+      setRecentReviews(mappedRecent); // Prendiamo le ultime 10 recensioni (arricchite)
 
     } catch (error) {
       console.error("Errore nel caricamento:", error);
@@ -111,7 +122,7 @@ export default function Home() {
                 <div>
                   <h4 className="font-bold text-slate-800">{rev.restaurants.name} <span className="text-slate-400 font-normal text-sm">({rev.restaurants.city})</span></h4>
                   <p className="text-sm text-slate-500 mt-1">
-                    Recensito da <span className="font-bold text-slate-700">{rev.username}</span>
+                    Recensito da <span className="font-bold text-slate-700">{rev.display_username || rev.username}</span>
                   </p>
                 </div>
                 
