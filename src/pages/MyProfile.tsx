@@ -10,6 +10,8 @@ export default function MyProfile() {
   const [savingName, setSavingName] = useState(false);
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!profile) {
@@ -147,6 +149,28 @@ export default function MyProfile() {
     }
   };
 
+  const handleDeleteReview = async (id: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questa recensione?')) return;
+    setDeletingId(id);
+    setError('');
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setReviews(prev => prev.filter(r => r.id !== id));
+      alert('Recensione eliminata.');
+    } catch (err: any) {
+      console.error(err);
+      setError("Errore durante l'eliminazione della recensione.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const avgGiven = reviews.length > 0
     ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1)
     : '0.0';
@@ -208,7 +232,17 @@ export default function MyProfile() {
                   <h3 className="font-bold text-slate-800">{rev.restaurants.name}</h3>
                   <p className="text-xs text-slate-500">{rev.restaurants.city}</p>
                 </div>
-                <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">🌯 {rev.average_score}</div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">🌯 {rev.average_score}</div>
+                  <button
+                    onClick={() => handleDeleteReview(rev.id)}
+                    className="text-red-600 hover:text-red-800 p-2 rounded-md"
+                    title="Elimina recensione"
+                    disabled={deletingId === rev.id}
+                  >
+                    {deletingId === rev.id ? '...' : <Trash2 size={16} />}
+                  </button>
+                </div>
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-3">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
             </div>
