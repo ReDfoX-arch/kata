@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Loader2, PlusCircle } from 'lucide-react';
+import { Search, MapPin, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface RestaurantSearchProps {
@@ -148,6 +148,13 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
           {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
         </button>
       </div>
+
+      {/* RISOLUZIONE ERRORE TS6133: Mostriamo l'errore in UI se presente */}
+      {error && (
+        <div className="mb-4 flex items-center gap-2 text-red-800 bg-red-50 p-3 rounded-lg text-sm font-medium border border-red-200">
+          <span>⚠️</span> {error}
+        </div>
+      )}
 
       {selected && (
         <div className="mt-4 flex items-center gap-2 text-green-800 bg-green-50 p-3 rounded-lg text-sm font-medium border border-green-200">
