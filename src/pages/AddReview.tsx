@@ -170,9 +170,9 @@ export default function AddReview() {
         {/* Sezione Voti */}
         <div className="pt-4 border-t border-slate-100">
           <ScoreGroup label="Location" value={scores.location} onChange={(v) => handleScoreChange('location', v)} />
-          <ScoreGroup label="Offerta" value={scores.offer} onChange={(v) => handleScoreChange('offer', v)} />
+          <ScoreGroup label="Menù" value={scores.offer} onChange={(v) => handleScoreChange('offer', v)} />
           <ScoreGroup label="Prezzo" value={scores.bill} onChange={(v) => handleScoreChange('bill', v)} />
-          <ScoreGroup label="Menù" value={scores.menu} onChange={(v) => handleScoreChange('menu', v)} />
+          <ScoreGroup label="Gusto" value={scores.menu} onChange={(v) => handleScoreChange('menu', v)} />
         </div>
 
         {/* Sezione Risultato e Invio */}
