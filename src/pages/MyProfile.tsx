@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabase';
 import { Trash2, Edit3, User as UserIcon } from 'lucide-react';
 
 export default function MyProfile() {
-  const profile = JSON.parse(localStorage.getItem('kata_profile') || 'null');
+  // Rendiamo il profile stabile (state) per evitare che il componente ricarichi ripetutamente
+  const [profile] = useState(() => JSON.parse(localStorage.getItem('kata_profile') || 'null'));
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -12,13 +13,18 @@ export default function MyProfile() {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    // Pre-fill il campo nickname quando il profile è disponibile
+    if (profile && profile.username) setNewName(profile.username);
+  }, [profile]);
 
   useEffect(() => {
-    if (!profile) {
+    if (!profile || !profile.userId) {
       setLoading(false);
       return;
     }
 
+    let mounted = true;
     const fetchMyReviews = async () => {
       setLoading(true);
       const { data } = await supabase
@@ -27,12 +33,14 @@ export default function MyProfile() {
         .eq('user_id', profile.userId)
         .order('created_at', { ascending: false });
 
-      if (data) setReviews(data);
-      setLoading(false);
+      if (mounted && data) setReviews(data);
+      if (mounted) setLoading(false);
     };
 
     fetchMyReviews();
-  }, [profile]);
+
+    return () => { mounted = false; };
+  }, [profile?.userId]);
 
   if (!profile) {
     return (
