@@ -122,7 +122,7 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
             </label>
             <input 
               type="text" 
-              placeholder="Es. GIGI LO SFIZIOSO"
+              placeholder="Es. KebabLover69"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase font-bold"
