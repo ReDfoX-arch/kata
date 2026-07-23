@@ -61,16 +61,33 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
 
         // 2. Se è libero, creiamo l'account e l'ID Segreto
         const newSecretId = crypto.randomUUID();
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({ 
-            username: upperUsername, 
-            pin_code: pin, 
-            secret_id: newSecretId,
-            avatar: avatar || null
-          });
+        const insertPayload: any = {
+          username: upperUsername,
+          pin_code: pin,
+          secret_id: newSecretId
+        };
+        if (avatar) insertPayload.avatar = avatar;
 
-        if (insertError) throw insertError;
+        let { error: insertError } = await supabase
+          .from('users')
+          .insert(insertPayload);
+
+        if (insertError) {
+          // Se la colonna avatar non è ancora presente nel database,
+          // ritentiamo senza il campo e continuiamo.
+          if (insertError.code === '42703') {
+            const { error: retryError } = await supabase
+              .from('users')
+              .insert({
+                username: upperUsername,
+                pin_code: pin,
+                secret_id: newSecretId
+              });
+            if (retryError) throw retryError;
+          } else {
+            throw insertError;
+          }
+        }
 
         // 3. Salviamo nel telefono
         localStorage.setItem('kata_profile', JSON.stringify({
@@ -82,12 +99,28 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
 
       } else {
         // --- MODALITÀ ACCESSO (LOGIN DA ALTRO DISPOSITIVO) ---
-        const { data: user, error: loginError } = await supabase
+        let user: any = null;
+        let loginError: any = null;
+
+        ({ data: user, error: loginError } = await supabase
           .from('users')
           .select('secret_id, avatar')
           .eq('username', upperUsername)
           .eq('pin_code', pin)
-          .maybeSingle();
+          .maybeSingle());
+
+        if (loginError && loginError.code === '42703') {
+          const { data: fallbackUser, error: fallbackError } = await supabase
+            .from('users')
+            .select('secret_id')
+            .eq('username', upperUsername)
+            .eq('pin_code', pin)
+            .maybeSingle();
+
+          if (fallbackError) throw fallbackError;
+          user = fallbackUser;
+          loginError = null;
+        }
 
         if (loginError) throw loginError;
 
@@ -97,14 +130,14 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           return;
         }
 
-        // Se nuovo avatar caricato, aggiorna il database
+        // Se l'utente carica un avatar durante il login, proviamo ad aggiornarlo nel database.
         if (avatar) {
           const { error: updateError } = await supabase
             .from('users')
             .update({ avatar })
             .eq('secret_id', user.secret_id);
-          
-          if (updateError) throw updateError;
+
+          if (updateError && updateError.code !== '42703') throw updateError;
         }
 
         // Se corretto, scarichiamo l'ID segreto e lo salviamo nel nuovo dispositivo
@@ -183,6 +216,11 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
               onChange={(e) => setName(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase font-bold"
             />
+            {mode === 'new' && (
+              <p className="text-sm text-slate-500 mt-2">
+                Il nickname che scegli è <strong>definitivo</strong> e non potrà essere cambiato in seguito.
+              </p>
+            )}
           </div>
 
           <div>

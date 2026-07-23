@@ -12,23 +12,49 @@ interface UserAvatarProps {
 export default function UserAvatar({ userId, username, size = 'md', className = '' }: UserAvatarProps) {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(username || '?');
+  const [avatarSupported, setAvatarSupported] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!userId && !username) return;
+    if (username) setDisplayName(username);
+  }, [username]);
+
+  useEffect(() => {
+    const currentProfile = (() => {
+      try {
+        return JSON.parse(localStorage.getItem('kata_profile') || 'null');
+      } catch {
+        return null;
+      }
+    })();
+
+    if (userId && currentProfile?.userId === userId && currentProfile.avatar) {
+      setAvatar(currentProfile.avatar);
+      if (currentProfile.username) setDisplayName(currentProfile.username);
+      return;
+    }
+
+    if (!userId || avatarSupported === false) return;
 
     const fetchUserData = async () => {
       try {
-        if (userId) {
-          const { data: user } = await supabase
-            .from('users')
-            .select('avatar, username')
-            .eq('secret_id', userId)
-            .maybeSingle();
+        const { data: user, error } = await supabase
+          .from('users')
+          .select('avatar, username')
+          .eq('secret_id', userId)
+          .maybeSingle();
 
-          if (user) {
-            setAvatar(user.avatar || null);
-            setDisplayName(user.username);
+        if (error) {
+          if (error.code === '42703') {
+            setAvatarSupported(false);
+            return;
           }
+          console.error('Errore nel caricamento avatar:', error);
+          return;
+        }
+
+        if (user) {
+          setAvatar(user.avatar || null);
+          setDisplayName(user.username || displayName);
         }
       } catch (err) {
         console.error('Errore nel caricamento avatar:', err);
@@ -36,7 +62,7 @@ export default function UserAvatar({ userId, username, size = 'md', className = 
     };
 
     fetchUserData();
-  }, [userId, username]);
+  }, [userId, avatarSupported]);
 
   const sizeClasses = {
     sm: 'w-8 h-8 text-sm',

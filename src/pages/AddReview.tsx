@@ -115,15 +115,13 @@ export default function AddReview() {
     setError('');
 
     try {
-      const upperUsername = profile.username;
-      
-      // Upsert user
-      const { error: userError } = await supabase
-        .from('users')
-        .upsert({ username: upperUsername }, { onConflict: 'username' });
-      
-      if (userError) throw userError;
+      if (!profile?.userId || !profile?.username) {
+        setError('Profilo utente non valido. Effettua nuovamente il login.');
+        setIsSubmitting(false);
+        return;
+      }
 
+      const upperUsername = profile.username;
       let restaurantId = null;
 
       // Cerchiamo se il ristorante è già nel database

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, Edit3, User as UserIcon, LogOut } from 'lucide-react';
+import { Trash2, User as UserIcon, LogOut } from 'lucide-react';
 
 type Profile = {
   username: string;
@@ -22,17 +22,10 @@ export default function MyProfile() {
   });
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newName, setNewName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(profile?.avatar || null);
-  const [savingName, setSavingName] = useState(false);
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Pre-fill il campo nickname quando il profile è disponibile
-    if (profile && profile.username) setNewName(profile.username);
-  }, [profile]);
 
   useEffect(() => {
     if (!profile || !profile.userId) {
@@ -83,91 +76,31 @@ export default function MyProfile() {
     reader.onload = async () => {
       const result = reader.result;
       if (typeof result === 'string') {
+        setAvatar(result);
+        if (profile) {
+          const updatedProfile = { ...profile, avatar: result };
+          localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
+          setProfile(updatedProfile);
+        }
+
         try {
-          // Salva avatar su Supabase
           const { error: updateError } = await supabase
             .from('users')
             .update({ avatar: result })
             .eq('secret_id', profile.userId);
 
-          if (updateError) throw updateError;
-
-          setAvatar(result);
-          if (profile) {
-            const updatedProfile = { ...profile, avatar: result };
-            localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
-            setProfile(updatedProfile);
-          }
+          if (updateError && updateError.code !== '42703') throw updateError;
         } catch (err: any) {
-          console.error(err);
-          setError('Errore nel salvataggio della foto profilo.');
+          if (err?.code !== '42703') {
+            console.error(err);
+            setError('Errore nel salvataggio della foto profilo.');
+          }
         }
       }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleChangeName = async () => {
-    const trimmed = newName.trim();
-    if (trimmed.length < 2) {
-      setError('Il nome deve avere almeno 2 caratteri.');
-      return;
-    }
-
-    const upper = trimmed.toUpperCase();
-    
-    // Se il nuovo nome è uguale al vecchio, non fare nulla
-    if (upper === profile.username) {
-      setError('Inserisci un nome diverso da quello attuale.');
-      return;
-    }
-
-    setSavingName(true);
-    setError('');
-
-    try {
-      // Controlla se esiste un ALTRO utente con lo stesso username (escludi l'utente corrente)
-      const { data: existing } = await supabase
-        .from('users')
-        .select('secret_id')
-        .eq('username', upper)
-        .neq('secret_id', profile.userId)
-        .maybeSingle();
-
-      if (existing) {
-        setError('Questo nickname è già in uso da un altro utente.');
-        setSavingName(false);
-        return;
-      }
-
-      // Aggiorna la tabella users
-      const { error: updateUserError } = await supabase
-        .from('users')
-        .update({ username: upper })
-        .eq('secret_id', profile.userId);
-
-      if (updateUserError) throw updateUserError;
-
-      // Aggiorna eventuali recensioni esistenti per mantenere il nickname sincronizzato
-      const { error: updateReviewsError } = await supabase
-        .from('reviews')
-        .update({ username: upper })
-        .eq('user_id', profile.userId);
-
-      if (updateReviewsError) throw updateReviewsError;
-
-      // Aggiorna localStorage
-      const newProfile = { ...profile, username: upper };
-      localStorage.setItem('kata_profile', JSON.stringify(newProfile));
-      setProfile(newProfile);
-      setSavingName(false);
-      alert('Nickname aggiornato con successo.');
-    } catch (err: any) {
-      console.error(err);
-      setError('Errore durante l\'aggiornamento del nome.');
-      setSavingName(false);
-    }
-  };
 
   const handleDeleteProfile = async () => {
     if (!confirm('Sei sicuro di voler eliminare il profilo? Questa operazione rimuoverà tutte le tue recensioni e non è reversibile.')) return;
@@ -289,13 +222,15 @@ export default function MyProfile() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-        <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Edit3 size={16} /> Cambia Nickname</h3>
-        {error && <p className="text-sm text-red-600 mb-2 font-bold">{error}</p>}
-        <div className="flex gap-3">
-          <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nuovo nickname" className="flex-1 p-3 border border-slate-200 rounded-lg" />
-          <button onClick={handleChangeName} disabled={savingName} className="px-4 py-3 bg-orange-600 text-white rounded-lg font-bold">{savingName ? 'Salvando...' : 'Cambia'}</button>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm font-bold">
+          {error}
         </div>
+      )}
+
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+        <h3 className="font-bold text-slate-800 mb-3">Informazioni nickname</h3>
+        <p className="text-slate-500 text-sm">Il nickname è permanente e non può essere modificato dopo la registrazione.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

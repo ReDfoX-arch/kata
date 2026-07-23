@@ -38,8 +38,8 @@ export default function Home() {
       const userIds = Array.from(new Set(recent.map(r => r.user_id).filter(Boolean)));
       let usersMap: Record<string, any> = {};
       if (userIds.length > 0) {
-        const { data: users } = await supabase.from('users').select('username, secret_id, avatar').in('secret_id', userIds);
-        if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: { username: u.username, avatar: u.avatar } }), {});
+        const { data: users } = await supabase.from('users').select('username, secret_id').in('secret_id', userIds);
+        if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: { username: u.username } }), {});
       }
       
       // Mappiamo le recensioni - se il join con restaurants fallisce, ricarichiamo il ristorante
@@ -59,8 +59,7 @@ export default function Home() {
         return {
           ...r,
           restaurants: restaurant,
-          display_username: usersMap[r.user_id]?.username || r.username,
-          user_avatar: usersMap[r.user_id]?.avatar || null
+          display_username: usersMap[r.user_id]?.username || r.username
         };
       }));
 
