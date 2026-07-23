@@ -2,12 +2,25 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trash2, Edit3, User as UserIcon } from 'lucide-react';
 
+type Profile = {
+  username: string;
+  userId: string;
+  avatar?: string | null;
+};
+
 export default function MyProfile() {
   // Rendiamo il profile stabile (state) per evitare che il componente ricarichi ripetutamente
-  const [profile] = useState(() => JSON.parse(localStorage.getItem('kata_profile') || 'null'));
+  const [profile, setProfile] = useState<Profile | null>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('kata_profile') || 'null');
+    } catch {
+      return null;
+    }
+  });
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(profile?.avatar || null);
   const [savingName, setSavingName] = useState(false);
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
@@ -40,7 +53,7 @@ export default function MyProfile() {
     fetchMyReviews();
 
     return () => { mounted = false; };
-  }, [profile?.userId]);
+  }, [profile]);
 
   if (!profile) {
     return (
@@ -50,6 +63,33 @@ export default function MyProfile() {
       </div>
     );
   }
+
+  const handleAvatarChange = (file: File | null) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Scegli un file immagine valido.');
+      return;
+    }
+    if (file.size > 2_000_000) {
+      setError('L\'immagine deve essere inferiore a 2 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        setAvatar(result);
+        if (profile) {
+          const updatedProfile = { ...profile, avatar: result };
+          localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
+          setProfile(updatedProfile);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleChangeName = async () => {
     const trimmed = newName.trim();
@@ -179,9 +219,21 @@ export default function MyProfile() {
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm">
-            <UserIcon size={40} className="text-white" />
-          </div>
+          <label className="cursor-pointer">
+            {avatar ? (
+              <img src={avatar} alt="Avatar profilo" className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" />
+            ) : (
+              <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm">
+                <UserIcon size={40} className="text-white" />
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
+            />
+          </label>
           <div>
             <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
             <h2 className="text-3xl font-black">{profile.username}</h2>

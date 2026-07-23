@@ -6,8 +6,29 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
   const [mode, setMode] = useState<'new' | 'login'>('new');
   const [name, setName] = useState('');
   const [pin, setPin] = useState('');
+  const [avatar, setAvatar] = useState<string>('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleAvatarChange = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Scegli un file immagine valido.');
+      return;
+    }
+    if (file.size > 2_000_000) {
+      setError("L'immagine deve essere inferiore a 2 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') {
+        setAvatar(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async () => {
     if (name.trim().length < 2) {
@@ -53,7 +74,8 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         // 3. Salviamo nel telefono
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
-          userId: newSecretId
+          userId: newSecretId,
+          avatar: avatar || null
         }));
         onComplete();
 
@@ -77,7 +99,8 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         // Se corretto, scarichiamo l'ID segreto e lo salviamo nel nuovo dispositivo
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
-          userId: user.secret_id
+          userId: user.secret_id,
+          avatar: avatar || null
         }));
         onComplete();
       }
@@ -116,6 +139,28 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
         )}
 
         <div className="space-y-4 text-left">
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wide text-xs mb-1">
+              Foto profilo (dalla galleria)
+            </label>
+            <label className="w-full cursor-pointer">
+              <div className="border border-dashed border-slate-300 rounded-xl p-4 text-center hover:border-orange-500 transition-colors bg-slate-50">
+                {avatar ? (
+                  <img src={avatar} alt="Anteprima avatar" className="mx-auto h-28 w-28 rounded-full object-cover" />
+                ) : (
+                  <p className="text-slate-500">Tocca per scegliere un'immagine dal tuo dispositivo</p>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
+              />
+            </label>
+            <p className="text-xs text-slate-400 mt-2">Scegli una foto dal cellulare o dal computer. Max 2MB.</p>
+          </div>
+
           <div>
             <label className="block font-bold text-slate-700 uppercase tracking-wide text-xs mb-1">
               Il tuo Nickname
