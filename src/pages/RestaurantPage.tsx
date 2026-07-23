@@ -83,10 +83,19 @@ export default function RestaurantPage() {
           </p>
           <div className="text-xs text-slate-400 mt-1 font-mono">Coordinate: {restaurant.lat.toFixed(4)}, {restaurant.lng.toFixed(4)}</div>
         </div>
-        <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center min-w-[120px]">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Media</p>
-          <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
-          <p className="text-xs font-bold text-slate-500 mt-1">{reviews.length} recensioni</p>
+        <div className="flex flex-col items-end gap-3">
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center min-w-[120px]">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Media</p>
+            <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
+            <p className="text-xs font-bold text-slate-500 mt-1">{reviews.length} recensioni</p>
+          </div>
+
+          <button
+            onClick={() => navigate('/add', { state: { restaurant } })}
+            className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors"
+          >
+            Scrivi recensione per questo locale
+          </button>
         </div>
       </div>
 

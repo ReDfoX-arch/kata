@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Loader2 } from 'lucide-react';
+import { Search, MapPin, Loader2, PlusCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface RestaurantSearchProps {
   onSelect: (restaurant: { name: string; city: string; country: string; lat: number; lng: number }) => void;
@@ -10,35 +11,117 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manual, setManual] = useState({ name: '', city: '', country: '', lat: '', lng: '' });
+  const [error, setError] = useState('');
 
-  const handleSearch = async (e: React.FormEvent | React.KeyboardEvent) => {
-    e.preventDefault();
+  const normalize = (s: string) => s ? s.trim().toLowerCase() : '';
+
+  const handleSearch = async (e?: React.FormEvent | React.KeyboardEvent) => {
+    if (e) e.preventDefault();
     if (!query.trim()) return;
 
     setLoading(true);
+    setError('');
+
     try {
-      // Chiamata API gratuita a Photon (OpenStreetMap)
-      const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
-      const data = await res.json();
-      setResults(data.features || []);
+      // 1) Cerca nei ristoranti custom già salvati nel DB (case-insensitive, partial match)
+      const { data: localMatches } = await supabase
+        .from('restaurants')
+        .select('id,name,city,country,lat,lng')
+        .ilike('name', `%${query}%`)
+        .limit(10);
+
+      const mappedLocal = (localMatches || []).map((r: any) => ({
+        source: 'local',
+        id: r.id,
+        properties: { name: r.name, city: r.city, country: r.country },
+        geometry: { coordinates: [r.lng, r.lat] }
+      }));
+
+      // 2) Chiamata API gratuita a Photon (OpenStreetMap) con limite più ampio
+      let remoteResults: any[] = [];
+      try {
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10`);
+        const data = await res.json();
+        remoteResults = data.features || [];
+      } catch (err) {
+        console.warn('Photon search failed', err);
+      }
+
+      // 3) Unisci e deduplica per nome+coords
+      const combined = [...mappedLocal, ...remoteResults];
+      const seen = new Set<string>();
+      const final: any[] = [];
+      for (const item of combined) {
+        const name = item.properties?.name || item.properties?.name || 'Senza Nome';
+        const coords = item.geometry?.coordinates || [0,0];
+        const key = `${normalize(name)}|${coords[0]||0}|${coords[1]||0}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          final.push(item);
+        }
+      }
+
+      setResults(final);
+
+      // Se non troviamo nulla, apri possibilità di aggiunta manuale
+      if (final.length === 0) setManualOpen(true);
+
     } catch (error) {
-      console.error("Errore di ricerca:", error);
+      console.error('Errore di ricerca:', error);
+      setError('Errore durante la ricerca. Riprova.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSelect = (place: any) => {
-    // Estrapoliamo i dati dal risultato della mappa
-    const name = place.properties.name || 'Locale Senza Nome';
-    const city = place.properties.city || place.properties.town || place.properties.village || 'Città non specificata';
-    const country = place.properties.country || 'Nazione non specificata';
+    // Estrapoliamo i dati dal risultato della mappa o dal DB
+    const name = place.properties?.name || 'Locale Senza Nome';
+    const city = place.properties?.city || place.properties?.town || place.properties?.village || 'Città non specificata';
+    const country = place.properties?.country || 'Nazione non specificata';
     const lat = place.geometry.coordinates[1];
     const lng = place.geometry.coordinates[0];
 
     setSelected(name);
     setResults([]); // Nascondiamo la lista dei risultati
+    setManualOpen(false);
     onSelect({ name, city, country, lat, lng });
+  };
+
+  const handleManualSubmit = async () => {
+    setError('');
+    const name = manual.name.trim();
+    if (!name) { setError('Inserisci un nome.'); return; }
+    const lat = parseFloat(manual.lat);
+    const lng = parseFloat(manual.lng);
+    if (isNaN(lat) || isNaN(lng)) { setError('Coordinate non valide. Usa valori numerici per lat e lng.'); return; }
+
+    try {
+      // Inseriamo il ristorante nel DB e lo selezioniamo
+      const { data: newRest, error: insertErr } = await supabase
+        .from('restaurants')
+        .insert({ name: manual.name, city: manual.city || '', country: manual.country || '', lat, lng })
+        .select('id,name,city,country,lat,lng')
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      // Costruiamo un oggetto simile al risultato map e selezioniamo
+      const obj = {
+        source: 'local',
+        id: newRest.id,
+        properties: { name: newRest.name, city: newRest.city, country: newRest.country },
+        geometry: { coordinates: [newRest.lng, newRest.lat] }
+      };
+
+      handleSelect(obj);
+
+    } catch (err: any) {
+      console.error('Errore inserimento manuale:', err);
+      setError('Errore durante l\'aggiunta manuale. Riprova.');
+    }
   };
 
   return (
@@ -90,6 +173,24 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Modal / Form aggiunta manuale */}
+      {manualOpen && (
+        <div className="mt-4 border border-slate-100 rounded-lg p-4 bg-slate-50">
+          <h4 className="font-bold mb-2">Aggiungi luogo manualmente</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <input placeholder="Nome" value={manual.name} onChange={(e)=>setManual({...manual, name: e.target.value})} className="p-2 border rounded" />
+            <input placeholder="Città" value={manual.city} onChange={(e)=>setManual({...manual, city: e.target.value})} className="p-2 border rounded" />
+            <input placeholder="Paese" value={manual.country} onChange={(e)=>setManual({...manual, country: e.target.value})} className="p-2 border rounded" />
+            <input placeholder="Latitudine" value={manual.lat} onChange={(e)=>setManual({...manual, lat: e.target.value})} className="p-2 border rounded" />
+            <input placeholder="Longitudine" value={manual.lng} onChange={(e)=>setManual({...manual, lng: e.target.value})} className="p-2 border rounded" />
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleManualSubmit} className="bg-orange-600 text-white px-4 py-2 rounded">Aggiungi e Seleziona</button>
+            <button onClick={() => setManualOpen(false)} className="px-4 py-2 rounded border">Annulla</button>
+          </div>
+        </div>
       )}
     </div>
   );

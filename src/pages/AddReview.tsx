@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import ScoreGroup from '../components/ScoreGroup';
 import RestaurantSearch from '../components/RestaurantSearch';
 import { supabase } from '../lib/supabase';
@@ -12,6 +12,7 @@ export default function AddReview() {
   
   // Stati per memorizzare i dati inseriti dall'utente
   const profile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
+  const location = useLocation();
   const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]);
   const [restaurant, setRestaurant] = useState<{name: string; city: string; country: string; lat: number; lng: number} | null>(null);
   const [scores, setScores] = useState({
@@ -23,6 +24,21 @@ export default function AddReview() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [error, setError] = useState('');
+
+  // Se la pagina è stata aperta da RestaurantPage con stato precompilato
+  useEffect(() => {
+    try {
+      if (!isEditMode && (location as any)?.state?.restaurant) {
+        const r = (location as any).state.restaurant;
+        if (r) {
+          setRestaurant({ name: r.name, city: r.city || '', country: r.country || '', lat: Number(r.lat), lng: Number(r.lng) });
+        }
+      }
+    } catch (e) {
+      // ignoriamo eventuali problemi di parsing dello state
+      console.warn('No prefilled restaurant');
+    }
+  }, [isEditMode, location]);
 
   // Carica i dati della recensione se in modalità edit
   useEffect(() => {
