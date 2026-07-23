@@ -52,22 +52,22 @@ export default function Stats() {
         
         // Mapping paesi a continenti (ampliato e corretto)
         const countryToContinent: Record<string, string> = {
-          'Italia': 'Europa', 'Francia': 'Europa', 'Spagna': 'Europa', 'Germania': 'Europa', 'Portogallo': 'Europa',
-          'Grecia': 'Europa', 'Polonia': 'Europa', 'Svizzera': 'Europa', 'Svezia': 'Europa', 'Norvegia': 'Europa',
-          'Danimarca': 'Europa', 'Finlandia': 'Europa', 'Irlanda': 'Europa', 'Regno Unito': 'Europa', 'Paesi Bassi': 'Europa',
-          'Belgio': 'Europa', 'Austria': 'Europa', 'Repubblica Ceca': 'Europa', 'Ungheria': 'Europa', 'Romania': 'Europa',
-          'Bulgaria': 'Europa', 'Croazia': 'Europa', 'Serbia': 'Europa', 'Bosnia': 'Europa', 'Lituania': 'Europa',
-          'Estonia': 'Europa', 'Lettonia': 'Europa', 'Slovenia': 'Europa', 'Slovacchia': 'Europa',
-          'Giappone': 'Asia', 'Cina': 'Asia', 'India': 'Asia', 'Corea del Sud': 'Asia', 'Corea del Nord': 'Asia', 
-          'Tailandia': 'Asia', 'Vietnam': 'Asia', 'Indonesia': 'Asia', 'Pakistan': 'Asia', 'Malesia': 'Asia', 
-          'Singapore': 'Asia', 'Taiwan': 'Asia', 'Hong Kong': 'Asia', 'Filippine': 'Asia', 'Bangladesh': 'Asia', 
-          'Laos': 'Asia', 'Myanmar': 'Asia', 'Cambogia': 'Asia', 'Nepal': 'Asia', 'Sri Lanka': 'Asia',
-          'USA': 'Nord America', 'Canada': 'Nord America', 'Messico': 'Nord America',
-          'Brasile': 'Sud America', 'Argentina': 'Sud America', 'Cile': 'Sud America', 'Peru': 'Sud America',
-          'Colombia': 'Sud America', 'Venezuela': 'Sud America', 'Ecuador': 'Sud America', 'Bolivia': 'Sud America',
-          'Australia': 'Oceania', 'Nuova Zelanda': 'Oceania',
-          'Egitto': 'Africa', 'Sudafrica': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Marocco': 'Africa',
-          'Tunisia': 'Africa', 'Etiopia': 'Africa', 'Tanzania': 'Africa'
+          'Italy': 'Europe', 'France': 'Europe', 'Spain': 'Europe', 'Germany': 'Europe', 'Portugal': 'Europe',
+          'Greece': 'Europe', 'Poland': 'Europe', 'Switzerland': 'Europe', 'Sweden': 'Europe', 'Norway': 'Europe',
+          'Denmark': 'Europe', 'Finland': 'Europe', 'Ireland': 'Europe', 'United Kingdom': 'Europe', 'Netherlands': 'Europe',
+          'Belgium': 'Europe', 'Austria': 'Europe', 'Czech Republic': 'Europe', 'Hungary': 'Europe', 'Romania': 'Europe',
+          'Bulgaria': 'Europe', 'Croatia': 'Europe', 'Serbia': 'Europe', 'Bosnia': 'Europe', 'Lithuania': 'Europe',
+          'Estonia': 'Europe', 'Latvia': 'Europe', 'Slovenia': 'Europe', 'Slovakia': 'Europe',
+          'Japan': 'Asia', 'China': 'Asia', 'India': 'Asia', 'South Korea': 'Asia', 'North Korea': 'Asia',
+          'Thailand': 'Asia', 'Vietnam': 'Asia', 'Indonesia': 'Asia', 'Pakistan': 'Asia', 'Malaysia': 'Asia',
+          'Singapore': 'Asia', 'Taiwan': 'Asia', 'Hong Kong': 'Asia', 'Philippines': 'Asia', 'Bangladesh': 'Asia',
+          'Laos': 'Asia', 'Myanmar': 'Asia', 'Cambodia': 'Asia', 'Nepal': 'Asia', 'Sri Lanka': 'Asia',
+          'United States': 'North America', 'Canada': 'North America', 'Mexico': 'North America',
+          'Brazil': 'South America', 'Argentina': 'South America', 'Chile': 'South America', 'Peru': 'South America',
+          'Colombia': 'South America', 'Venezuela': 'South America', 'Ecuador': 'South America', 'Bolivia': 'South America',
+          'Australia': 'Oceania', 'New Zealand': 'Oceania',
+          'Egypt': 'Africa', 'South Africa': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Morocco': 'Africa',
+          'Tunisia': 'Africa', 'Ethiopia': 'Africa', 'Tanzania': 'Africa'
         };
 
         const uniqueContinents = new Set(
