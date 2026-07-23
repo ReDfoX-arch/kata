@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import ScoreGroup from '../components/ScoreGroup';
 import RestaurantSearch from '../components/RestaurantSearch';
 import { supabase } from '../lib/supabase';
+import { ArrowLeft } from 'lucide-react';
 
 export default function AddReview() {
   const navigate = useNavigate();
+  const { id: editId } = useParams();
+  const isEditMode = !!editId;
   
   // Stati per memorizzare i dati inseriti dall'utente
   const profile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
-  const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]); // NUOVO: Stato per la data
+  const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]);
   const [restaurant, setRestaurant] = useState<{name: string; city: string; country: string; lat: number; lng: number} | null>(null);
   const [scores, setScores] = useState({
     location: 0,
@@ -18,6 +21,59 @@ export default function AddReview() {
     menu: 0
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
+  const [error, setError] = useState('');
+
+  // Carica i dati della recensione se in modalità edit
+  useEffect(() => {
+    if (!isEditMode) return;
+    
+    const fetchReview = async () => {
+      try {
+        const { data: review } = await supabase
+          .from('reviews')
+          .select('*, restaurants(*)')
+          .eq('id', editId)
+          .maybeSingle();
+
+        if (!review) {
+          setError('Recensione non trovata.');
+          setLoading(false);
+          return;
+        }
+
+        // Verifica che l'utente sia il proprietario
+        if (review.user_id !== profile.userId) {
+          setError('Non puoi modificare una recensione che non è tua.');
+          setLoading(false);
+          return;
+        }
+
+        // Popola i campi
+        setReviewDate(review.created_at.split('T')[0]);
+        setRestaurant({
+          name: review.restaurants.name,
+          city: review.restaurants.city,
+          country: review.restaurants.country,
+          lat: review.restaurants.lat,
+          lng: review.restaurants.lng
+        });
+        setScores({
+          location: review.score_location,
+          offer: review.score_offer,
+          bill: review.score_bill,
+          menu: review.score_menu
+        });
+        setLoading(false);
+      } catch (err: any) {
+        console.error(err);
+        setError('Errore nel caricamento della recensione.');
+        setLoading(false);
+      }
+    };
+
+    fetchReview();
+  }, [editId, profile.userId]);
 
   // Calcolo automatico della media
   const values = Object.values(scores);
@@ -28,100 +84,150 @@ export default function AddReview() {
     setScores(prev => ({ ...prev, [category]: value }));
   };
 
+  // Validazione per prevenire voti unrealistic
+  const validateScores = (): boolean => {
+    const allMin = Object.values(scores).every(v => v === 1);
+    const allMax = Object.values(scores).every(v => v === 10);
+
+    if (allMin) {
+      setError('Capo, stiamo parlando di un Kebab, cosa ti aspettavi?');
+      return false;
+    }
+    if (allMax) {
+      setError('Capo... Chi ti ha pagato?');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!isAllVoted || !restaurant) {
-        alert("Compila tutti i campi: Username, Ristorante e tutti i 4 voti!");
-        return;
+    e.preventDefault();
+    if (!isAllVoted || !restaurant) {
+      alert("Compila tutti i campi: Ristorante e tutti i 4 voti!");
+      return;
+    }
+
+    if (!validateScores()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const upperUsername = profile.username;
+      
+      // Upsert user
+      const { error: userError } = await supabase
+        .from('users')
+        .upsert({ username: upperUsername }, { onConflict: 'username' });
+      
+      if (userError) throw userError;
+
+      let restaurantId = null;
+
+      // Cerchiamo se il ristorante è già nel database
+      const { data: existingRest, error: searchRestError } = await supabase
+        .from('restaurants')
+        .select('id')
+        .eq('name', restaurant.name)
+        .eq('lat', restaurant.lat)
+        .maybeSingle();
+
+      if (searchRestError) throw searchRestError;
+
+      if (existingRest) {
+        restaurantId = existingRest.id;
+      } else {
+        const { data: newRest, error: insertRestError } = await supabase
+          .from('restaurants')
+          .insert({
+            name: restaurant.name,
+            city: restaurant.city,
+            country: restaurant.country,
+            lat: restaurant.lat,
+            lng: restaurant.lng
+          })
+          .select('id')
+          .single();
+
+        if (insertRestError) throw insertRestError;
+        restaurantId = newRest.id;
       }
 
-      setIsSubmitting(true);
-
-      try {
-        const upperUsername = profile.username;
-        // 1. Salviamo o confermiamo l'utente (Upsert: aggiorna se esiste, inserisce se non esiste)
-        const { error: userError } = await supabase
-          .from('users')
-          .upsert({ username: upperUsername }, { onConflict: 'username' });
-        
-        if (userError) throw userError;
-
-        // 2. Cerchiamo se il ristorante è già nel database (per evitare duplicati)
-        let restaurantId = null;
-        const { data: existingRest, error: searchRestError } = await supabase
-          .from('restaurants')
-          .select('id')
-          .eq('name', restaurant.name)
-          .eq('lat', restaurant.lat)
-          .maybeSingle(); // maybeSingle non dà errore se non trova nulla
-
-        if (searchRestError) throw searchRestError;
-
-        if (existingRest) {
-          restaurantId = existingRest.id;
-        } else {
-          // Se è un nuovo locale, lo aggiungiamo
-          const { data: newRest, error: insertRestError } = await supabase
-            .from('restaurants')
-            .insert({
-              name: restaurant.name,
-              city: restaurant.city,
-              country: restaurant.country,
-              lat: restaurant.lat,
-              lng: restaurant.lng
-            })
-            .select('id')
-            .single();
-
-          if (insertRestError) throw insertRestError;
-          restaurantId = newRest.id;
+      // Formattazione sicura per la data
+      let dateToSave = new Date().toISOString();
+      if (reviewDate) {
+        const parsedDate = new Date(reviewDate);
+        if (!isNaN(parsedDate.getTime())) {
+          const now = new Date();
+          parsedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+          dateToSave = parsedDate.toISOString();
         }
+      }
 
-        // Formattazione sicura per la data da inviare al database
-        let dateToSave = new Date().toISOString();
-        if (reviewDate) {
-          const parsedDate = new Date(reviewDate);
-          if (!isNaN(parsedDate.getTime())) {
-            const now = new Date();
-            parsedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
-            dateToSave = parsedDate.toISOString();
-          }
-        }
+      const reviewData = {
+        restaurant_id: restaurantId,
+        username: upperUsername,
+        user_id: profile.userId,
+        score_location: scores.location,
+        score_offer: scores.offer,
+        score_bill: scores.bill,
+        score_menu: scores.menu,
+        created_at: dateToSave
+      };
 
-        // 3. Inseriamo la recensione effettiva
+      if (isEditMode) {
+        // Aggiorna la recensione esistente
+        const { error: updateError } = await supabase
+          .from('reviews')
+          .update(reviewData)
+          .eq('id', editId)
+          .eq('user_id', profile.userId);
+
+        if (updateError) throw updateError;
+        alert('✅ Recensione aggiornata con successo!');
+      } else {
+        // Crea una nuova recensione
         const { error: reviewError } = await supabase
           .from('reviews')
-          .insert({
-            restaurant_id: restaurantId,
-            username: upperUsername,
-            user_id: profile.userId, // <--- LA RIGA MAGICA
-            score_location: scores.location,
-            score_offer: scores.offer,
-            score_bill: scores.bill,
-            score_menu: scores.menu,
-            created_at: dateToSave
-          });
+          .insert(reviewData);
 
         if (reviewError) throw reviewError;
-
-        alert(`✅ Recensione salvata con successo!`);
-        
-        // Riporta l'utente alla Home Page
-        navigate('/');
-
-      } catch (error: any) {
-        console.error("Errore durante il salvataggio:", error);
-        alert(`Si è verificato un errore col database: ${error.message || "Errore sconosciuto"}`);
-      } finally {
-        setIsSubmitting(false);
+        alert('✅ Recensione salvata con successo!');
       }
-    };
+
+      navigate('/');
+
+    } catch (error: any) {
+      console.error("Errore durante il salvataggio:", error);
+      setError(`Si è verificato un errore: ${error.message || "Errore sconosciuto"}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento...</div>;
+  }
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-100 mt-4 mb-20 md:mb-4">
+      {isEditMode && (
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm mb-4">
+          <ArrowLeft size={16} /> Torna indietro
+        </button>
+      )}
+      
       <h2 className="text-2xl font-extrabold text-slate-800 mb-6 flex items-center gap-2">
-        <span>✍️</span> Capo dimmi tutto...
+        <span>{isEditMode ? '✏️' : '✍️'}</span> {isEditMode ? 'Modifica Recensione' : 'Capo dimmi tutto...'}
       </h2>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 font-bold">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-8">
         
@@ -142,7 +248,7 @@ export default function AddReview() {
           </div>
         </div>
 
-        {/* Qui andrà il componente per cercare/selezionare il ristorante */}
+        {/* Ricerca Ristorante */}
         <div className="pt-4 pb-2 border-t border-slate-100">
           <RestaurantSearch onSelect={setRestaurant} />
         </div>
@@ -179,7 +285,7 @@ export default function AddReview() {
               `}
               disabled={!isAllVoted || !restaurant || isSubmitting}
             >
-              {isSubmitting ? 'Salvataggio...' : 'Salva Voto'}
+              {isSubmitting ? 'Salvataggio...' : isEditMode ? 'Aggiorna Voto' : 'Salva Voto'}
             </button>
           </div>
         </div>

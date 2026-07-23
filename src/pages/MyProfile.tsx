@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, Edit3, User as UserIcon } from 'lucide-react';
+import { Trash2, Edit3, User as UserIcon, LogOut } from 'lucide-react';
 
 type Profile = {
   username: string;
@@ -9,6 +10,8 @@ type Profile = {
 };
 
 export default function MyProfile() {
+  const navigate = useNavigate();
+  
   // Rendiamo il profile stabile (state) per evitare che il componente ricarichi ripetutamente
   const [profile, setProfile] = useState<Profile | null>(() => {
     try {
@@ -135,11 +138,9 @@ export default function MyProfile() {
       // Aggiorna localStorage
       const newProfile = { ...profile, username: upper };
       localStorage.setItem('kata_profile', JSON.stringify(newProfile));
+      setProfile(newProfile);
       setSavingName(false);
       alert('Nickname aggiornato con successo.');
-      // Aggiorna pagina per riflettere il nuovo username
-      window.location.reload();
-
     } catch (err: any) {
       console.error(err);
       setError('Errore durante l\'aggiornamento del nome.');
@@ -195,6 +196,13 @@ export default function MyProfile() {
       console.error(err);
       setError('Errore durante la cancellazione del profilo.');
     }
+  };
+
+  const handleLogout = () => {
+    if (!confirm('Sei sicuro di voler effettuare il logout? Potrai accedere di nuovo con il tuo nickname e PIN.')) return;
+    localStorage.removeItem('kata_profile');
+    navigate('/');
+    window.location.reload();
   };
 
   const handleDeleteReview = async (id: string) => {
@@ -269,12 +277,20 @@ export default function MyProfile() {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-        <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Trash2 size={16} /> Elimina Profilo</h3>
-        <p className="text-slate-500 text-sm mb-3">Eliminando il profilo verranno rimosse tutte le tue recensioni e il nickname tornerà disponibile per altri utenti.</p>
-        <div className="flex gap-3 items-center">
-          <input value={pinConfirm} onChange={(e) => setPinConfirm(e.target.value)} placeholder="Inserisci PIN per confermare" className="flex-1 p-3 border border-slate-200 rounded-lg" />
-          <button onClick={handleDeleteProfile} className="px-4 py-3 bg-red-600 text-white rounded-lg font-bold">Elimina</button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><Trash2 size={16} /> Elimina Profilo</h3>
+          <p className="text-slate-500 text-sm mb-3">Eliminando il profilo verranno rimosse tutte le tue recensioni e il nickname tornerà disponibile per altri utenti.</p>
+          <div className="flex gap-3 items-center">
+            <input value={pinConfirm} onChange={(e) => setPinConfirm(e.target.value)} placeholder="Inserisci PIN per confermare" className="flex-1 p-3 border border-slate-200 rounded-lg" />
+            <button onClick={handleDeleteProfile} className="px-4 py-3 bg-red-600 text-white rounded-lg font-bold">Elimina</button>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+          <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2"><LogOut size={16} /> Logout</h3>
+          <p className="text-slate-500 text-sm mb-3">Esci dal tuo account su questo dispositivo. Il profilo rimarrà salvato nel database.</p>
+          <button onClick={handleLogout} className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg font-bold hover:bg-slate-700">Logout</button>
         </div>
       </div>
 
@@ -294,17 +310,26 @@ export default function MyProfile() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">🌯 {rev.average_score}</div>
-                  <button
-                    onClick={() => handleDeleteReview(rev.id)}
-                    className="text-red-600 hover:text-red-800 p-2 rounded-md"
-                    title="Elimina recensione"
-                    disabled={deletingId === rev.id}
-                  >
-                    {deletingId === rev.id ? '...' : <Trash2 size={16} />}
-                  </button>
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-3">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => navigate(`/edit/${rev.id}`)}
+                  className="flex-1 text-blue-600 hover:text-blue-800 p-2 rounded-md border border-blue-300 hover:bg-blue-50 text-sm font-bold"
+                  title="Modifica recensione"
+                >
+                  ✏️ Modifica
+                </button>
+                <button
+                  onClick={() => handleDeleteReview(rev.id)}
+                  className="text-red-600 hover:text-red-800 p-2 rounded-md"
+                  title="Elimina recensione"
+                  disabled={deletingId === rev.id}
+                >
+                  {deletingId === rev.id ? '...' : <Trash2 size={16} />}
+                </button>
+              </div>
             </div>
           ))}
         </div>

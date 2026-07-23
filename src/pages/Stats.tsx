@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { BarChart2, Hash, Map, Award, AlertTriangle } from 'lucide-react';
+import { BarChart2, Hash, Map, Award, AlertTriangle, Trophy } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar';
 
 export default function Stats() {
   const [stats, setStats] = useState({
@@ -8,7 +9,11 @@ export default function Stats() {
     totalRestaurants: 0,
     globalAvg: '0.0',
     bestKebab: null as any,
-    worstKebab: null as any
+    worstKebab: null as any,
+    topUsers: [] as any[],
+    uniqueCities: 0,
+    uniqueCountries: 0,
+    uniqueContinents: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -17,6 +22,7 @@ export default function Stats() {
       setLoading(true);
       const { data: rests } = await supabase.from('restaurants').select('*');
       const { data: revs } = await supabase.from('reviews').select('*');
+      const { data: users } = await supabase.from('users').select('*');
 
       if (rests && revs && revs.length > 0) {
         // Calcolo punteggi per ristorante
@@ -24,19 +30,55 @@ export default function Stats() {
           const rRevs = revs.filter(rev => rev.restaurant_id === r.id);
           const avg = rRevs.length > 0 ? rRevs.reduce((acc, curr) => acc + Number(curr.average_score), 0) / rRevs.length : 0;
           return { ...r, avgScore: avg };
-        }).filter(r => r.avgScore > 0); // Solo chi ha voti
+        }).filter(r => r.avgScore > 0);
 
         calculatedRests.sort((a, b) => b.avgScore - a.avgScore);
         
         // Media globale del sito
         const globalSum = revs.reduce((acc, curr) => acc + Number(curr.average_score), 0);
         
+        // Calcolo Top 3 utenti per numero di recensioni
+        const userStats = (users || []).map(u => ({
+          ...u,
+          reviewCount: revs.filter(r => r.user_id === u.secret_id).length
+        })).filter(u => u.reviewCount > 0).sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 3);
+
+        // Calcolo statistiche geografiche
+        const uniqueCities = new Set(rests.map((r: any) => r.city)).size;
+        const uniqueCountries = new Set(rests.map((r: any) => r.country)).size;
+        
+        // Mapping semplice di paesi a continenti
+        const countryToContinent: Record<string, string> = {
+          'Italia': 'Europa', 'Francia': 'Europa', 'Spagna': 'Europa', 'Germania': 'Europa', 'Portogallo': 'Europa',
+          'Grecia': 'Europa', 'Polonia': 'Europa', 'Svizzera': 'Europa', 'Svezia': 'Europa', 'Norvegia': 'Europa',
+          'Danimarca': 'Europa', 'Finlandia': 'Europa', 'Irlanda': 'Europa', 'Regno Unito': 'Europa', 'Paesi Bassi': 'Europa',
+          'Belgio': 'Europa', 'Austria': 'Europa', 'Repubblica Ceca': 'Europa', 'Ungheria': 'Europa', 'Romania': 'Europa',
+          'Bulgaria': 'Europa', 'Croazia': 'Europa', 'Serbia': 'Europa', 'Bosnia': 'Europa',
+          'Giappone': 'Asia', 'Cina': 'Asia', 'India': 'Asia', 'Corea del Sud': 'Asia', 'Tailandia': 'Asia',
+          'Vietnam': 'Asia', 'Indonesia': 'Asia', 'Pakistan': 'Asia', 'Malesia': 'Asia', 'Singapore': 'Asia',
+          'Taiwan': 'Asia', 'Hong Kong': 'Asia', 'Filippine': 'Asia', 'Bangladesh': 'Asia', 'Laos': 'Asia',
+          'USA': 'Nord America', 'Canada': 'Nord America', 'Messico': 'Nord America',
+          'Brasile': 'Sud America', 'Argentina': 'Sud America', 'Cile': 'Sud America', 'Peru': 'Sud America',
+          'Australia': 'Oceania', 'Nuova Zelanda': 'Oceania',
+          'Egitto': 'Africa', 'Sudafrica': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Marocco': 'Africa'
+        };
+
+        const uniqueContinents = new Set(
+          rests
+            .map((r: any) => countryToContinent[r.country] || 'Sconosciuto')
+            .filter((c: string) => c !== 'Sconosciuto')
+        ).size;
+
         setStats({
           totalReviews: revs.length,
           totalRestaurants: calculatedRests.length,
           globalAvg: (globalSum / revs.length).toFixed(1),
           bestKebab: calculatedRests[0],
-          worstKebab: calculatedRests[calculatedRests.length - 1]
+          worstKebab: calculatedRests[calculatedRests.length - 1],
+          topUsers: userStats,
+          uniqueCities,
+          uniqueCountries,
+          uniqueContinents
         });
       }
       setLoading(false);
@@ -71,6 +113,22 @@ export default function Stats() {
         </div>
       </div>
 
+      {/* Statistiche Geografiche */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center">
+          <p className="text-2xl font-black text-blue-600">{stats.uniqueCities}</p>
+          <p className="text-xs font-bold text-blue-700 uppercase mt-1 tracking-wider">Città Visitate</p>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl text-center">
+          <p className="text-2xl font-black text-purple-600">{stats.uniqueCountries}</p>
+          <p className="text-xs font-bold text-purple-700 uppercase mt-1 tracking-wider">Paesi Visitati</p>
+        </div>
+        <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
+          <p className="text-2xl font-black text-green-600">{stats.uniqueContinents}</p>
+          <p className="text-xs font-bold text-green-700 uppercase mt-1 tracking-wider">Continenti</p>
+        </div>
+      </div>
+
       {/* Migliore e Peggiore */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {stats.bestKebab && (
@@ -95,6 +153,29 @@ export default function Stats() {
           </div>
         )}
       </div>
+
+      {/* Kebab Kings - Top 3 Utenti */}
+      {stats.topUsers.length > 0 && (
+        <div className="mt-8">
+          <h3 className="text-2xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+            <Trophy className="text-yellow-500" size={28}/> Kebab Kings
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {stats.topUsers.map((user, index) => (
+              <div key={user.secret_id} className="bg-white border border-slate-200 p-6 rounded-xl shadow-sm relative overflow-hidden flex flex-col items-center text-center">
+                {index === 0 && <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">👑 1°</div>}
+                {index === 1 && <div className="absolute top-0 right-0 bg-slate-400 text-slate-50 text-xs font-bold px-3 py-1 rounded-bl-lg">🥈 2°</div>}
+                {index === 2 && <div className="absolute top-0 right-0 bg-orange-400 text-orange-50 text-xs font-bold px-3 py-1 rounded-bl-lg">🥉 3°</div>}
+                
+                <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="mb-4" />
+                <h4 className="font-bold text-lg text-slate-800 mb-1">{user.username}</h4>
+                <p className="text-3xl font-black text-orange-600 mb-2">{user.reviewCount}</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recensioni</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

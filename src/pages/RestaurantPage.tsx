@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { MapPin, ArrowLeft, User } from 'lucide-react';
+import { MapPin, ArrowLeft } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar';
 
 export default function RestaurantPage() {
   const { id } = useParams(); // Prende l'ID dall'URL
@@ -79,8 +80,8 @@ export default function RestaurantPage() {
           {reviews.map((rev) => (
             <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
-                <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer">
-                  <div className="bg-orange-100 p-2 rounded-full text-orange-600 group-hover:bg-orange-200 transition-colors"><User size={20} /></div>
+                <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
+                  <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
                   <div>
                     <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.display_username || rev.username}</h3>
                     <p className="text-xs text-slate-400">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>

@@ -77,6 +77,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/add" element={<AddReview />} />
+            <Route path="/edit/:id" element={<AddReview />} />
             <Route path="/rankings" element={<Rankings />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/me" element={<MyProfile />} />

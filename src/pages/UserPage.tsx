@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, User as UserIcon } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import UserAvatar from '../components/UserAvatar';
 
 export default function UserPage() {
   const { username } = useParams();
@@ -53,9 +54,7 @@ export default function UserPage() {
       {/* Intestazione Utente */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-4 rounded-full backdrop-blur-sm">
-            <UserIcon size={40} className="text-white" />
-          </div>
+          <UserAvatar userId={reviews.length > 0 ? reviews[0].user_id : undefined} username={username} size="lg" className="border-4 border-white" />
           <div>
             <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Profilo Critico</h1>
             <h2 className="text-3xl font-black">{username}</h2>

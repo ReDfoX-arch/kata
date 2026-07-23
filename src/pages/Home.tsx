@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trophy, Star, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import UserAvatar from '../components/UserAvatar';
+import ClickableUsername from '../components/ClickableUsername';
+import ClickableRestaurant from '../components/ClickableRestaurant';
 
 export default function Home() {
   const [topRestaurants, setTopRestaurants] = useState<any[]>([]);
@@ -91,9 +93,7 @@ export default function Home() {
               <div key={rest.id} className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm relative overflow-hidden flex flex-col justify-between">
                 {index === 0 && <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">1° POSTO</div>}
                 <div>
-                  <Link to={`/restaurant/${rest.id}`}>
-                    <h3 className="font-bold text-lg text-slate-800 hover:text-orange-600 transition-colors">{rest.name}</h3>
-                  </Link>
+                  <ClickableRestaurant restaurantId={rest.id} restaurantName={rest.name} className="text-lg hover:text-orange-600 transition-colors block" />
                   <p className="text-sm text-slate-500">{rest.city}, {rest.country}</p>
                 </div>
                 <div className="mt-4 flex items-center justify-between">
@@ -119,11 +119,17 @@ export default function Home() {
           ) : (
             recentReviews.map((rev) => (
               <div key={rev.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                <div>
-                  <h4 className="font-bold text-slate-800">{rev.restaurants.name} <span className="text-slate-400 font-normal text-sm">({rev.restaurants.city})</span></h4>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Recensito da <span className="font-bold text-slate-700">{rev.display_username || rev.username}</span>
-                  </p>
+                <div className="flex items-center gap-3">
+                  <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
+                  <div className="flex-1">
+                    <h4 className="font-bold text-slate-800">
+                      <ClickableRestaurant restaurantId={rev.restaurants.id} restaurantName={rev.restaurants.name} className="text-slate-800 font-bold" />
+                      <span className="text-slate-400 font-normal text-sm"> ({rev.restaurants.city})</span>
+                    </h4>
+                    <p className="text-sm text-slate-500 mt-1">
+                      Recensito da <ClickableUsername username={rev.display_username || rev.username} />
+                    </p>
+                  </div>
                 </div>
                 
                 <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">

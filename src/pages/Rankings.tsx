@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Trophy } from 'lucide-react';
+import ClickableRestaurant from '../components/ClickableRestaurant';
 
 export default function Rankings() {
   const [restaurants, setRestaurants] = useState<any[]>([]);
@@ -63,7 +64,9 @@ export default function Rankings() {
                   {sortMethod === 'best' ? index + 1 : '-'}
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-slate-800">{rest.name}</h3>
+                  <h3 className="font-bold text-lg text-slate-800">
+                    <ClickableRestaurant restaurantId={rest.id} restaurantName={rest.name} className="text-lg" />
+                  </h3>
                   <p className="text-sm text-slate-500">{rest.city}, {rest.country}</p>
                 </div>
               </div>
