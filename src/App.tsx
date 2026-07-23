@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle } from 'lucide-react';
+import { useState } from 'react';
 
 import ProfileSetup from './components/ProfileSetup';
 import Home from './pages/Home';

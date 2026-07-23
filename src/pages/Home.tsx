@@ -120,7 +120,7 @@ export default function Home() {
                     🌯 {rev.average_score}
                   </div>
 
-                  {review.user_id === myProfile.userId && (
+                  {rev.user_id === myProfile.userId && (
                     <button 
                     onClick={() => handleDelete(rev.id)}
                       className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors flex items-center gap-1"

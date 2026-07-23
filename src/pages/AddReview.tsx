@@ -28,14 +28,9 @@ export default function AddReview() {
     setScores(prev => ({ ...prev, [category]: value }));
   };
 
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Forza il testo in MAIUSCOLO
-    setUsername(e.target.value.toUpperCase());
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!username || !isAllVoted || !restaurant) {
+      if (!isAllVoted || !restaurant) {
         alert("Compila tutti i campi: Username, Ristorante e tutti i 4 voti!");
         return;
       }
@@ -180,9 +175,9 @@ export default function AddReview() {
             <button 
               type="submit"
               className={`flex-1 sm:flex-none px-8 py-3 rounded-lg font-bold text-white transition-all shadow-md
-                ${username && isAllVoted && restaurant && !isSubmitting ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-lg' : 'bg-slate-300 cursor-not-allowed'}
+                ${isAllVoted && restaurant && !isSubmitting ? 'bg-orange-600 hover:bg-orange-700 hover:shadow-lg' : 'bg-slate-300 cursor-not-allowed'}
               `}
-              disabled={!username || !isAllVoted || !restaurant || isSubmitting}
+              disabled={!isAllVoted || !restaurant || isSubmitting}
             >
               {isSubmitting ? 'Salvataggio...' : 'Salva Voto'}
             </button>
