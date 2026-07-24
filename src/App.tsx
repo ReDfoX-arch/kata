@@ -1,6 +1,6 @@
 import { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon, Loader2 } from 'lucide-react';
+import {Info as InfoIcon, Map as MapIcon, Home as HomeIcon, Trophy, BarChart2, PlusCircle, User as UserIcon, Loader2 } from 'lucide-react';
 
 // 1. Convertiamo le importazioni statiche in importazioni dinamiche (Lazy Loading)
 const ProfileSetup = lazy(() => import('./components/ProfileSetup'));
@@ -12,6 +12,7 @@ const Stats = lazy(() => import('./pages/Stats'));
 const RestaurantPage = lazy(() => import('./pages/RestaurantPage'));
 const UserPage = lazy(() => import('./pages/UserPage'));
 const MyProfile = lazy(() => import('./pages/MyProfile'));
+const InfoPage = lazy(() => import('./pages/Info'));
 
 // 2. Creiamo un piccolo componente di caricamento da mostrare durante il download del chunk
 const PageLoader = () => (
@@ -62,6 +63,7 @@ function App() {
               <Link to="/add" className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
                 <PlusCircle size={18} /> Nuova
               </Link>
+              <Link to="/info" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><InfoIcon size={20} /> Info</Link>
             </nav>
           </div>
         </header>
@@ -97,6 +99,7 @@ function App() {
               <Route path="/me" element={<MyProfile />} />
               <Route path="/restaurant/:id" element={<RestaurantPage />} />
               <Route path="/user/:username" element={<UserPage />} />
+              <Route path="/info" element={<InfoPage />} />
             </Routes>
           </Suspense>
         </main>
@@ -117,6 +120,7 @@ function App() {
           <Link to="/rankings" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><Trophy size={24} /><span className="text-[10px] mt-1 font-medium">Top</span></Link>
           <Link to="/stats" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><BarChart2 size={24} /><span className="text-[10px] mt-1 font-medium">Stats</span></Link>
           <Link to="/me" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><UserIcon size={24} /><span className="text-[10px] mt-1 font-medium">Profilo</span></Link>
+          <Link to="/info" className="flex flex-col items-center text-slate-500 hover:text-orange-600"><InfoIcon size={24} /><span className="text-[10px] mt-1 font-medium">Info</span></Link>
         </nav>
 
       </div>
