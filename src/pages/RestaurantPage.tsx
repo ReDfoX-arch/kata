@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
+import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X, Heart } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 export default function RestaurantPage() {
@@ -12,9 +12,11 @@ export default function RestaurantPage() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  
-  // Nuovo stato per la visualizzazione a schermo intero
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
+
+  // Stati per i Preferiti
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   const profile = (() => {
     try { return JSON.parse(localStorage.getItem('kata_profile') || 'null'); } 
@@ -32,6 +34,11 @@ export default function RestaurantPage() {
       if (restData) setRestaurant(restData);
       if (photosData) setPhotos(photosData);
 
+      if (profile && id) {
+        const { data: favData } = await supabase.from('user_favorites').select('*').eq('user_id', profile.userId).eq('restaurant_id', id).maybeSingle();
+        if (favData) setIsFavorite(true);
+      }
+
       if (revsData) {
         const userIds = Array.from(new Set(revsData.map((r: any) => r.user_id).filter(Boolean)));
         let usersMap: Record<string, string> = {};
@@ -48,7 +55,26 @@ export default function RestaurantPage() {
       setLoading(false);
     };
     fetchRestaurantData();
-  }, [id]);
+  }, [id, profile?.userId]);
+
+  const toggleFavorite = async () => {
+    if (!profile) return alert("Devi aver effettuato l'accesso per salvare i preferiti.");
+    setFavoriteLoading(true);
+    try {
+      if (isFavorite) {
+        await supabase.from('user_favorites').delete().eq('user_id', profile.userId).eq('restaurant_id', id);
+        setIsFavorite(false);
+      } else {
+        await supabase.from('user_favorites').insert({ user_id: profile.userId, restaurant_id: id });
+        setIsFavorite(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Errore nell'aggiornamento dei preferiti.");
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,7 +93,6 @@ export default function RestaurantPage() {
       
       const { data: publicUrlData } = supabase.storage.from('gallery').getPublicUrl(fileName);
       
-      // Inseriamo anche l'ID dell'utente che ha caricato la foto
       const { data: newPhoto, error: dbError } = await supabase.from('restaurant_photos').insert({
         restaurant_id: id,
         url: publicUrlData.publicUrl,
@@ -75,7 +100,6 @@ export default function RestaurantPage() {
       }).select().single();
       
       if (dbError) throw dbError;
-      
       setPhotos(prev => [newPhoto, ...prev]);
     } catch (err) {
       console.error(err);
@@ -93,6 +117,18 @@ export default function RestaurantPage() {
     } catch(err) {
       console.error(err);
       alert("Impossibile eliminare l'immagine.");
+    }
+  };
+
+  // NUOVA LOGICA: Admin Delete per le Recensioni
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm('Sei sicuro di voler eliminare questa recensione?')) return;
+    try {
+      await supabase.from('reviews').delete().eq('id', reviewId);
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+    } catch (err) {
+      console.error(err);
+      alert("Errore durante l'eliminazione della recensione.");
     }
   };
 
@@ -121,24 +157,15 @@ export default function RestaurantPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
       
-      {/* OVERLAY MODAL FOTO A TUTTO SCHERMO */}
       {zoomedPhoto && (
         <div 
           className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
           onClick={() => setZoomedPhoto(null)}
         >
-          <button 
-            className="absolute top-6 right-6 text-white hover:text-orange-500 bg-black/50 p-2 rounded-full transition-colors"
-            onClick={() => setZoomedPhoto(null)}
-          >
+          <button className="absolute top-6 right-6 text-white hover:text-orange-500 bg-black/50 p-2 rounded-full transition-colors">
             <X size={32} />
           </button>
-          <img 
-            src={zoomedPhoto} 
-            alt="Ingrandimento" 
-            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
-            onClick={(e) => e.stopPropagation()} // Evita che cliccando la foto si chiuda il modal
-          />
+          <img src={zoomedPhoto} alt="Ingrandimento" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
@@ -151,11 +178,7 @@ export default function RestaurantPage() {
         <div className="absolute inset-0 z-0 pointer-events-none rounded-xl overflow-hidden">
           <div className="absolute right-0 bottom-0 top-[40%] md:top-0 left-0 md:left-[30%] overflow-hidden">
             {mapSrc && (
-              <iframe 
-                src={mapSrc}
-                className="absolute -top-16 -bottom-16 -left-16 -right-16 w-[calc(100%+8rem)] h-[calc(100%+8rem)] opacity-50 grayscale-[30%] object-cover pointer-events-none"
-                frameBorder="0" scrolling="no" title="Mappa Sfondo"
-              ></iframe>
+              <iframe src={mapSrc} className="absolute -top-16 -bottom-16 -left-16 -right-16 w-[calc(100%+8rem)] h-[calc(100%+8rem)] opacity-50 grayscale-[30%] object-cover pointer-events-none" frameBorder="0" scrolling="no"></iframe>
             )}
           </div>
           <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-white via-white/95 to-transparent md:via-white/90 z-10 pointer-events-none"></div>
@@ -169,47 +192,49 @@ export default function RestaurantPage() {
           <div className="text-xs text-slate-400 mt-1 font-mono font-medium">Coordinate: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
         </div>
 
-        <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0">
-          <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[120px]">
+        <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0 w-full md:w-auto">
+          <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[120px] self-start md:self-end">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Media</p>
             <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
             <p className="text-xs font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
           </div>
-          <button
-            onClick={() => navigate('/add', { state: { restaurant } })}
-            className="bg-orange-600 text-white px-4 py-2 flex-1 md:flex-none w-full text-center rounded-lg font-bold hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg"
-          >
-            Scrivi recensione
-          </button>
+          
+          <div className="flex gap-2 w-full mt-2">
+            <button
+              onClick={toggleFavorite}
+              disabled={favoriteLoading}
+              title={isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti"}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors shadow-md flex items-center justify-center border-2 ${
+                isFavorite
+                  ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <Heart size={20} className={isFavorite ? 'fill-red-500 text-red-500' : ''} />
+            </button>
+            <button
+              onClick={() => navigate('/add', { state: { restaurant } })}
+              className="bg-orange-600 text-white px-4 py-2 flex-1 text-center rounded-lg font-bold hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg"
+            >
+              Scrivi recensione
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* SEZIONE: Galleria Fotografica Pubblica */}
+      {/* Galleria Fotografica */}
       <div className="mt-8 mb-4">
         <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
           <Camera size={24} className="text-slate-500" /> Foto del Locale
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {photos.map(photo => {
-            // Un utente può cancellare la foto se è l'Admin, OPPURE se l'ha caricata lui stesso
             const canDelete = isAdmin || (profile && photo.user_id === profile.userId);
-            
             return (
-              <div 
-                key={photo.id} 
-                className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100 cursor-pointer"
-                onClick={() => setZoomedPhoto(photo.url)} // Click per aprire fullscreen
-              >
+              <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100 cursor-pointer" onClick={() => setZoomedPhoto(photo.url)}>
                 <img src={photo.url} alt="Scatto locale" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                
                 {canDelete && (
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); // Evita che si apra l'immagine a schermo intero quando si clicca il cestino
-                      handleDeletePhoto(photo.id); 
-                    }} 
-                    className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm"
-                  >
+                  <button onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id); }} className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm">
                     <Trash2 size={16} />
                   </button>
                 )}
@@ -217,12 +242,9 @@ export default function RestaurantPage() {
             );
           })}
           
-          {/* Box di caricamento ora visibile a TUTTI gli utenti con profilo */}
           {profile && (
             <label className="relative aspect-square rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-slate-500 group overflow-hidden">
-              {uploading ? (
-                <Loader2 className="animate-spin text-orange-500" size={32} />
-              ) : (
+              {uploading ? <Loader2 className="animate-spin text-orange-500" size={32} /> : (
                 <>
                   <ImagePlus size={32} className="mb-2 group-hover:text-orange-500 transition-colors group-hover:scale-110 duration-300" />
                   <span className="text-xs font-bold uppercase tracking-wider group-hover:text-orange-600 transition-colors text-center px-2">Aggiungi Foto</span>
@@ -240,41 +262,58 @@ export default function RestaurantPage() {
         <p className="text-slate-500">Nessuna recensione ancora presente.</p>
       ) : (
         <div className="space-y-4">
-          {reviews.map((rev) => (
-            <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-              <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
-                <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
-                  <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
-                  <div>
-                    <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.display_username || rev.username}</h3>
-                    <p className="text-xs text-slate-400">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
+          {reviews.map((rev) => {
+            const canDeleteReview = isAdmin || (profile && profile.userId === rev.user_id);
+
+            return (
+              <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
+                  <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
+                    <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
+                    <div>
+                      <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.display_username || rev.username}</h3>
+                      <p className="text-xs text-slate-400">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
+                    </div>
+                  </Link>
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="text-2xl font-black text-slate-800">
+                      🌯 {rev.average_score}
+                    </div>
+                    {/* BOTTONE ELIMINA RECENSIONE (Admin o Proprietario) */}
+                    {canDeleteReview && (
+                      <button
+                        onClick={() => handleDeleteReview(rev.id)}
+                        className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
+                        title="Elimina recensione"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </div>
-                </Link>
-                <div className="text-2xl font-black text-slate-800">
-                  🌯 {rev.average_score}
+                </div>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className="bg-slate-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Location</p>
+                    <p className="font-black text-slate-700">{rev.score_location}</p>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Menù</p>
+                    <p className="font-black text-slate-700">{rev.score_offer}</p>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Conto</p>
+                    <p className="font-black text-slate-700">{rev.score_bill}</p>
+                  </div>
+                  <div className="bg-slate-50 p-2 rounded-lg text-center">
+                    <p className="text-xs text-slate-500 font-bold uppercase">Gusto</p>
+                    <p className="font-black text-slate-700">{rev.score_menu}</p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Location</p>
-                  <p className="font-black text-slate-700">{rev.score_location}</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Menù</p>
-                  <p className="font-black text-slate-700">{rev.score_offer}</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Conto</p>
-                  <p className="font-black text-slate-700">{rev.score_bill}</p>
-                </div>
-                <div className="bg-slate-50 p-2 rounded-lg text-center">
-                  <p className="text-xs text-slate-500 font-bold uppercase">Gusto</p>
-                  <p className="font-black text-slate-700">{rev.score_menu}</p>
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
