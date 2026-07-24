@@ -10,6 +10,16 @@ type Profile = {
   isAdmin?: boolean;
 };
 
+// Logica per calcolare il Badge
+const getBadgeInfo = (count: number) => {
+  if (count >= 30) return { title: 'Sultano del Sacro Spiedo', color: 'text-yellow-400' };
+  if (count >= 20) return { title: 'Gran Visir del Döner', color: 'text-fuchsia-400' };
+  if (count >= 15) return { title: 'Califfo dello Shawarma', color: 'text-cyan-400' };
+  if (count >= 10) return { title: 'Pascià del Piccante', color: 'text-red-400' };
+  if (count >= 5)  return { title: 'Emiro del Dürüm', color: 'text-emerald-400' };
+  return { title: 'Beduino della Notte', color: 'text-slate-300' };
+};
+
 export default function MyProfile() {
   const navigate = useNavigate();
   
@@ -130,11 +140,12 @@ export default function MyProfile() {
   };
 
   const avgGiven = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1) : '0.0';
-  
   const vegCount = reviews.filter(r => r.is_vegetarian).length;
   const meatCount = reviews.length - vegCount;
   const vegPerc = reviews.length > 0 ? Math.round((vegCount / reviews.length) * 100) : 0;
   const meatPerc = reviews.length > 0 ? Math.round((meatCount / reviews.length) * 100) : 0;
+  
+  const userBadge = getBadgeInfo(reviews.length);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
@@ -145,41 +156,54 @@ export default function MyProfile() {
         </div>
       )}
 
-      <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className={`w-20 h-20 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
-              {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover bg-white" /> : <UserIcon size={40} className="text-white/50" />}
+      {/* Riquadro Header Aggiornato (Flex Column) */}
+      <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
+        
+        {/* Parte Superiore: Info + Stats */}
+        <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className={`w-20 h-20 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
+                {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover bg-white" /> : <UserIcon size={40} className="text-white/50" />}
+              </div>
+              <label className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 transition-colors p-2 rounded-full border-2 border-slate-900 cursor-pointer shadow-lg z-10">
+                <Camera size={14} className="text-white" />
+                <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)} />
+              </label>
             </div>
-            <label className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 transition-colors p-2 rounded-full border-2 border-slate-900 cursor-pointer shadow-lg z-10">
-              <Camera size={14} className="text-white" />
-              <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)} />
-            </label>
+            <div>
+              <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
+              <h2 className="text-3xl font-black">{profile.username}</h2>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
-            <h2 className="text-3xl font-black">{profile.username}</h2>
+
+          <div className="flex gap-3 flex-wrap">
+            <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+              <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
+              <p className="text-xl font-black">{reviews.length}</p>
+            </div>
+            <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+              <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Media</p>
+              <p className="text-xl font-black">🌯 {avgGiven}</p>
+            </div>
+            <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[100px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+              <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Stile</p>
+              <div className="flex justify-center gap-3 text-lg font-black mt-0.5">
+                <span className="text-orange-200" title="Kebab di Carne">🥙 {meatPerc}%</span>
+                <span className="text-green-300" title="Falafel / Veg">🧆 {vegPerc}%</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="flex gap-3 flex-wrap">
-          {/* Aggiunti "flex flex-col items-center justify-center" per centrare perfettamente i contenuti */}
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
-            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
-            <p className="text-xl font-black">{reviews.length}</p>
-          </div>
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
-            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Media</p>
-            <p className="text-xl font-black">🌯 {avgGiven}</p>
-          </div>
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[100px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
-            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Stile</p>
-            <div className="flex justify-center gap-3 text-lg font-black mt-0.5">
-              <span className="text-orange-200" title="Kebab di Carne">🥙 {meatPerc}%</span>
-              <span className="text-green-300" title="Falafel / Veg">🧆 {vegPerc}%</span>
-            </div>
-          </div>
+        {/* Parte Bassa (Footer del Badge) */}
+        <div className="bg-black/20 px-8 py-3 border-t border-white/5 flex items-center">
+          <p className="text-xs sm:text-sm">
+            <span className="font-bold text-slate-400 uppercase tracking-widest mr-2">Titolo:</span>
+            <span className={`font-black tracking-wide ${userBadge.color}`}>"{userBadge.title}"</span>
+          </p>
         </div>
+
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm font-bold">{error}</div>}
@@ -239,7 +263,6 @@ export default function MyProfile() {
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-3">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
               
-              {/* STAMPA COMMENTO SE PRESENTE */}
               {rev.comment && (
                 <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${rev.is_vegetarian ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
                   « {rev.comment} »

@@ -1,4 +1,4 @@
-import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code} from 'lucide-react';
+import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code, Award, Image, Users, MapPin, Star } from 'lucide-react';
 
 export default function Info() {
   // Array statico per il Changelog. 
@@ -99,8 +99,16 @@ export default function Info() {
           </h3>
           <ul className="space-y-3 flex-1">
             <li className="flex items-center gap-2 text-sm font-medium">
-              <div className="bg-white/20 p-1.5 rounded-md"><InfoIcon size={16} /></div>
-              Sistema di Badges per i recensori
+              <div className="bg-white/20 p-1.5 rounded-md"><Users size={16} /></div>
+              Sezione Community e follower
+            </li>
+            <li className="flex items-center gap-2 text-sm font-medium">
+              <div className="bg-white/20 p-1.5 rounded-md"><MapPin size={16} /></div>
+              Miglioramenti mappa: filtri per distanza e orari
+            </li>
+            <li className="flex items-center gap-2 text-sm font-medium">
+              <div className="bg-white/20 p-1.5 rounded-md"><Star size={16} /></div>
+              Sistema di premi e ristoranti consigliati dalla community
             </li>
           </ul>
           <p className="text-xs text-orange-200 mt-4 font-bold">Stay tuned.</p>
