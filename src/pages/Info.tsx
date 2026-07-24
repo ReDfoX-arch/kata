@@ -1,4 +1,4 @@
-import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code, Award, Image, Users, MapPin, Star } from 'lucide-react';
+import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code, Users, MapPin, Star } from 'lucide-react';
 
 export default function Info() {
   // Array statico per il Changelog. 
