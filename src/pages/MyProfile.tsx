@@ -10,13 +10,29 @@ type Profile = {
   isAdmin?: boolean;
 };
 
+// Logica dinamica per il Badge: calcola automaticamente il livello
+const BADGE_LEVELS = [
+  { min: 30, title: 'Sultano del Sacro Spiedo', color: 'text-yellow-400' },
+  { min: 20, title: 'Gran Visir del Döner', color: 'text-fuchsia-400' },
+  { min: 15, title: 'Califfo dello Shawarma', color: 'text-cyan-400' },
+  { min: 10, title: 'Pascià del Piccante', color: 'text-red-400' },
+  { min: 5,  title: 'Emiro del Dürüm', color: 'text-emerald-400' },
+  { min: 0,  title: 'Beduino della Notte', color: 'text-slate-300' }
+];
+
 const getBadgeInfo = (count: number) => {
-  if (count >= 30) return { title: 'Sultano del Sacro Spiedo', color: 'text-yellow-400' };
-  if (count >= 20) return { title: 'Gran Visir del Döner', color: 'text-fuchsia-400' };
-  if (count >= 15) return { title: 'Califfo dello Shawarma', color: 'text-cyan-400' };
-  if (count >= 10) return { title: 'Pascià del Piccante', color: 'text-red-400' };
-  if (count >= 5)  return { title: 'Emiro del Dürüm', color: 'text-emerald-400' };
-  return { title: 'Beduino della Notte', color: 'text-slate-300' };
+  const total = BADGE_LEVELS.length;
+  for (let i = 0; i < total; i++) {
+    if (count >= BADGE_LEVELS[i].min) {
+      return {
+        title: BADGE_LEVELS[i].title,
+        color: BADGE_LEVELS[i].color,
+        current: total - i,
+        total: total
+      };
+    }
+  }
+  return { title: 'Beduino della Notte', color: 'text-slate-300', current: 1, total };
 };
 
 export default function MyProfile() {
@@ -193,11 +209,13 @@ export default function MyProfile() {
           </div>
         </div>
 
-        {/* FOOTER BADGE AGGIORNATO (Più grande, corsivo e parentesi uncinate) */}
-        <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center flex-wrap gap-2">
-          <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Titolo:</span>
-          <span className={`text-base sm:text-lg font-black tracking-wide italic ${userBadge.color}`}>
+        {/* FOOTER BADGE AGGIORNATO (Senza Titolo:, con livello dinamico a destra) */}
+        <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center justify-between gap-4">
+          <span className={`text-base sm:text-lg font-black tracking-wide italic truncate ${userBadge.color}`}>
             « {userBadge.title} »
+          </span>
+          <span className="text-xs sm:text-sm font-bold text-slate-400 bg-white/5 px-3 py-1 rounded-full shrink-0">
+            {userBadge.current} / {userBadge.total}
           </span>
         </div>
 

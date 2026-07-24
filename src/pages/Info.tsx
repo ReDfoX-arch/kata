@@ -5,7 +5,8 @@ export default function Info() {
   // Aggiornalo tu manualmente con gli ultimi 10 commit quando fai un rilascio.
   const changelog = [
     // { version: 'vxx', date: 'xx/xx/2026', message: 'xx' },
-    { version: 'v1.6', date: '24/07/2026', message: 'Aggiunta versione vegetariana' },
+    { version: 'v1.7', date: '25/07/2026', message: 'Introdotti badge per utenti più attivi' },
+    { version: 'v1.6', date: '25/07/2026', message: 'Aggiunta versione vegetariana' },
     { version: 'v1.5', date: '24/07/2026', message: 'Aggiunta galleria foto per i locali' },
     { version: 'v1.4', date: '24/07/2026', message: 'Aggiunta pagina Info, crediti e changelog' },
     { version: 'v1.3', date: '24/07/2026', message: 'Layout mappa ristorante in trasparenza' },
