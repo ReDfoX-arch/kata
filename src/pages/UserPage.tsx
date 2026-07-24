@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 const BADGE_LEVELS = [
@@ -34,6 +34,7 @@ export default function UserProfile() {
   const [user, setUser] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -73,19 +74,30 @@ export default function UserProfile() {
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
       
+      {/* Modal Zoom per Foto Profilo Pubblica */}
+      {zoomedAvatar && (
+        <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setZoomedAvatar(null)}>
+          <button className="absolute top-6 right-6 text-white hover:text-orange-500 bg-black/50 p-2 rounded-full transition-colors"><X size={32} /></button>
+          <img src={zoomedAvatar} alt="Ingrandimento Avatar" className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm">
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
-        <div className="p-8 flex flex-col md:flex-row justify-between md:items-start gap-6">
-          <div className="flex items-start gap-4">
-            {/* FIX: shrink-0 per impedire lo schiacciamento */}
-            <div className="shrink-0">
-              <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="w-20 h-20 shadow-lg aspect-square" />
+        {/* Cambiato in items-center */}
+        <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            {/* Foto profilo pubblica ingrandita e cliccabile */}
+            <div 
+              className={`shrink-0 ${user.avatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} 
+              onClick={() => { if (user.avatar) setZoomedAvatar(user.avatar); }}
+            >
+              <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="w-24 h-24 shadow-lg aspect-square" />
             </div>
-            {/* FIX: min-w-0 e break-words per far andare a capo i testi lunghi */}
             <div className="min-w-0">
               <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Profilo Utente</h1>
               <h2 className="text-3xl font-black break-words leading-tight">{user.username}</h2>

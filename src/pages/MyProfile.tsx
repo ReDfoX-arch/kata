@@ -172,19 +172,19 @@ export default function MyProfile() {
 
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
-        <div className="p-8 flex flex-col md:flex-row justify-between md:items-start gap-6">
-          <div className="flex items-start gap-4">
-            {/* FIX: shrink-0 per impedire lo schiacciamento */}
+        {/* Cambiato in items-center */}
+        <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
+          <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              <div className={`w-20 h-20 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
-                {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover aspect-square bg-white" /> : <UserIcon size={40} className="text-white/50" />}
+              {/* Cambiato in w-24 h-24 */}
+              <div className={`w-24 h-24 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
+                {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover aspect-square bg-white" /> : <UserIcon size={48} className="text-white/50" />}
               </div>
               <label className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 transition-colors p-2 rounded-full border-2 border-slate-900 cursor-pointer shadow-lg z-10">
                 <Camera size={14} className="text-white" />
                 <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)} />
               </label>
             </div>
-            {/* FIX: min-w-0 e break-words per far andare a capo i testi lunghi */}
             <div className="min-w-0">
               <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
               <h2 className="text-3xl font-black break-words leading-tight">{profile.username}</h2>
