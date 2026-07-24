@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X, Heart, MapPin } from 'lucide-react';
 
@@ -19,7 +19,7 @@ export default function MyProfile() {
   });
   
   const [reviews, setReviews] = useState<any[]>([]);
-  const [favorites, setFavorites] = useState<any[]>([]); // Stato Preferiti
+  const [favorites, setFavorites] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(profile?.avatar || null);
@@ -210,7 +210,7 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* NUOVA SEZIONE: PREFERITI */}
+      {/* NUOVA SEZIONE: PREFERITI (Immutata) */}
       <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4 flex items-center gap-2">
         <Heart className="text-red-500" size={24} /> Locali Preferiti
       </h2>
@@ -257,11 +257,19 @@ export default function MyProfile() {
           {reviews.map((rev) => (
             <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-slate-800">{rev.restaurants.name}</h3>
-                  <p className="text-xs text-slate-500">{rev.restaurants.city}</p>
+                <div className="min-w-0 pr-4">
+                  
+                  {/* AGGIUNTO IL LINK AL LOCALE NELL'ELENCO DELLE MIE RECENSIONI */}
+                  <Link 
+                    to={`/restaurant/${rev.restaurants.id}`} 
+                    className="font-bold text-slate-800 hover:text-orange-600 transition-colors block text-lg truncate"
+                  >
+                    {rev.restaurants.name}
+                  </Link>
+                  
+                  <p className="text-xs text-slate-500 truncate">{rev.restaurants.city}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">🌯 {rev.average_score}</div>
                 </div>
               </div>

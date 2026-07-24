@@ -122,9 +122,18 @@ export default function RestaurantPage() {
   const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa recensione?')) return;
     try {
-      await supabase.from('reviews').delete().eq('id', reviewId);
+      // Passiamo l'user_id dell'admin nella query affinché PostgreSQL 
+      // applichi correttamente la RLS Policy che abbiamo creato.
+      const { error } = await supabase.from('reviews').delete().eq('id', reviewId).eq('user_id', profile.userId);
+      
+      if (error) {
+        if (error.code === '42501') alert("❌ Errore di permessi. PostgreSQL ha bloccato la cancellazione (probabile RLS Rifiutata). Controlla il database.");
+        throw error;
+      }
+      
       setReviews(prev => prev.filter(r => r.id !== reviewId));
-    } catch (err) {
+      alert('✅ Recensione eliminata.');
+    } catch (err: any) {
       console.error(err);
       alert("Errore durante l'eliminazione della recensione.");
     }
@@ -133,7 +142,6 @@ export default function RestaurantPage() {
   if (loading) return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento locale...</div>;
   if (!restaurant) return <div className="py-10 text-center font-bold text-red-500">Ristorante non trovato.</div>;
 
-  // --- CALCOLO DELLE 3 MEDIE MATEMATICHE ---
   const meatReviews = reviews.filter(r => !r.is_vegetarian);
   const vegReviews = reviews.filter(r => r.is_vegetarian);
 
@@ -180,7 +188,7 @@ export default function RestaurantPage() {
         <div className="absolute inset-0 z-0 pointer-events-none rounded-xl overflow-hidden">
           <div className="absolute right-0 bottom-0 top-[40%] md:top-0 left-0 md:left-[30%] overflow-hidden">
             {mapSrc && (
-              <iframe src={mapSrc} className="absolute -top-16 -bottom-16 -left-16 -right-16 w-[calc(100%+8rem)] h-[calc(100%+8rem)] opacity-50 grayscale-[30%] object-cover pointer-events-none" frameBorder="0" scrolling="no"></iframe>
+              <iframe src={mapSrc} className="absolute -top-16 -bottom-16 -left-16 -right-16 w-[calc(100%+8rem)] h-[calc(100%+8rem)] opacity-50 grayscale-[30%] object-cover pointer-events-none" frameBorder="0" scrolling="no" title="Mappa Sfondo"></iframe>
             )}
           </div>
           <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-white via-white/95 to-transparent md:via-white/90 z-10 pointer-events-none"></div>
@@ -195,18 +203,12 @@ export default function RestaurantPage() {
         </div>
 
         <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0 w-full md:w-auto">
-          
-          {/* NUOVO CRUSCOTTO DELLE 3 MEDIE */}
           <div className="flex gap-2 self-start md:self-end w-full md:w-auto">
-            
-            {/* Box Media Globale (Grande) */}
             <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[100px] flex-1 md:flex-none flex flex-col justify-center">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Globale</p>
               <p className="text-3xl font-black text-slate-800">🌯 {avgScore}</p>
               <p className="text-[10px] font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
             </div>
-
-            {/* Box Medie Separate (Piccole, Incolonnate) */}
             <div className="flex flex-col gap-2 flex-1 md:flex-none min-w-[80px]">
               <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm px-3 py-1.5 rounded-lg text-center flex-1 flex flex-col justify-center">
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Carne</p>
@@ -217,9 +219,7 @@ export default function RestaurantPage() {
                 <p className="text-xl font-black text-[#3f5737]">🧆 {vegScore}</p>
               </div>
             </div>
-
           </div>
-          
           <div className="flex gap-2 w-full mt-2">
             <button
               onClick={toggleFavorite}
@@ -250,19 +250,19 @@ export default function RestaurantPage() {
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {photos.map(photo => {
+            // Sbloccati i poteri da Admin per la cancellazione foto
             const canDelete = isAdmin || (profile && photo.user_id === profile.userId);
             return (
               <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100 cursor-pointer" onClick={() => setZoomedPhoto(photo.url)}>
                 <img src={photo.url} alt="Scatto locale" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                 {canDelete && (
-                  <button onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id); }} className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm">
+                  <button onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id); }} className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm" title="Elimina foto">
                     <Trash2 size={16} />
                   </button>
                 )}
               </div>
             );
           })}
-          
           {profile && (
             <label className="relative aspect-square rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-slate-500 group overflow-hidden">
               {uploading ? <Loader2 className="animate-spin text-orange-500" size={32} /> : (
@@ -284,10 +284,9 @@ export default function RestaurantPage() {
       ) : (
         <div className="space-y-4">
           {reviews.map((rev) => {
+            // Sbloccati i poteri da Admin per la cancellazione recensioni
             const canDeleteReview = isAdmin || (profile && profile.userId === rev.user_id);
             const isVeg = rev.is_vegetarian;
-            
-            // Variabili di Stile Condizionali per recensioni Veg o Classiche
             const cardBg = isVeg ? 'bg-[#f4f7f3] border-[#dce6d8]' : 'bg-white border-slate-200';
             const textColor = isVeg ? 'text-[#3f5737]' : 'text-slate-800';
             const iconEmoji = isVeg ? '🧆' : '🥙';
@@ -296,6 +295,7 @@ export default function RestaurantPage() {
             return (
               <div key={rev.id} className={`p-5 rounded-xl shadow-sm border ${cardBg}`}>
                 <div className={`flex justify-between items-start border-b pb-3 mb-3 ${isVeg ? 'border-[#dce6d8]' : 'border-slate-100'}`}>
+                  {/* AGGIUNTO IL LINK AL PROFILO UTENTE */}
                   <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
                     <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
                     <div>
@@ -303,49 +303,28 @@ export default function RestaurantPage() {
                       <p className={`text-xs ${isVeg ? 'text-[#6b8a61]' : 'text-slate-400'}`}>{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
                     </div>
                   </Link>
-                  
                   <div className="flex items-center gap-4">
                     <div className={`text-2xl font-black ${textColor}`}>
                       {iconEmoji} {rev.average_score}
                     </div>
                     {canDeleteReview && (
-                      <button
-                        onClick={() => handleDeleteReview(rev.id)}
-                        className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
-                        title="Elimina recensione"
-                      >
+                      <button onClick={() => handleDeleteReview(rev.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors" title="Elimina recensione">
                         <Trash2 size={18} />
                       </button>
                     )}
                   </div>
                 </div>
-                
-                <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 text-sm`}>
-                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
-                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Location</p>
-                    <p className={`font-black ${textColor}`}>{rev.score_location}</p>
-                  </div>
-                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
-                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Menù</p>
-                    <p className={`font-black ${textColor}`}>{rev.score_offer}</p>
-                  </div>
-                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
-                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Conto</p>
-                    <p className={`font-black ${textColor}`}>{rev.score_bill}</p>
-                  </div>
-                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
-                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Gusto</p>
-                    <p className={`font-black ${textColor}`}>{rev.score_menu}</p>
-                  </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Location</p><p className={`font-black ${textColor}`}>{rev.score_location}</p></div>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Menù</p><p className={`font-black ${textColor}`}>{rev.score_offer}</p></div>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Conto</p><p className={`font-black ${textColor}`}>{rev.score_bill}</p></div>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Gusto</p><p className={`font-black ${textColor}`}>{rev.score_menu}</p></div>
                 </div>
-
-                {/* Stampa del COMMENTO (se presente) */}
                 {rev.comment && (
                   <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${isVeg ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
                     « {rev.comment} »
                   </div>
                 )}
-
               </div>
             );
           })}
