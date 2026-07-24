@@ -79,16 +79,20 @@ export default function UserProfile() {
 
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
-        <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="w-20 h-20 shadow-lg" />
-            <div>
+        <div className="p-8 flex flex-col md:flex-row justify-between md:items-start gap-6">
+          <div className="flex items-start gap-4">
+            {/* FIX: shrink-0 per impedire lo schiacciamento */}
+            <div className="shrink-0">
+              <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="w-20 h-20 shadow-lg aspect-square" />
+            </div>
+            {/* FIX: min-w-0 e break-words per far andare a capo i testi lunghi */}
+            <div className="min-w-0">
               <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Profilo Utente</h1>
-              <h2 className="text-3xl font-black">{user.username}</h2>
+              <h2 className="text-3xl font-black break-words leading-tight">{user.username}</h2>
             </div>
           </div>
 
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap md:justify-end">
             <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
               <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
               <p className="text-xl font-black">{reviews.length}</p>
@@ -107,7 +111,6 @@ export default function UserProfile() {
           </div>
         </div>
 
-        {/* FOOTER BADGE AGGIORNATO (Senza Titolo:, con livello dinamico a destra) */}
         <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center justify-between gap-4">
           <span className={`text-base sm:text-lg font-black tracking-wide italic truncate ${userBadge.color}`}>
             « {userBadge.title} »

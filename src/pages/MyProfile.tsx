@@ -10,7 +10,6 @@ type Profile = {
   isAdmin?: boolean;
 };
 
-// Logica dinamica per il Badge: calcola automaticamente il livello
 const BADGE_LEVELS = [
   { min: 30, title: 'Sultano del Sacro Spiedo', color: 'text-yellow-400' },
   { min: 20, title: 'Gran Visir del Döner', color: 'text-fuchsia-400' },
@@ -173,24 +172,26 @@ export default function MyProfile() {
 
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
-        <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="relative">
+        <div className="p-8 flex flex-col md:flex-row justify-between md:items-start gap-6">
+          <div className="flex items-start gap-4">
+            {/* FIX: shrink-0 per impedire lo schiacciamento */}
+            <div className="relative shrink-0">
               <div className={`w-20 h-20 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
-                {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover bg-white" /> : <UserIcon size={40} className="text-white/50" />}
+                {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover aspect-square bg-white" /> : <UserIcon size={40} className="text-white/50" />}
               </div>
               <label className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 transition-colors p-2 rounded-full border-2 border-slate-900 cursor-pointer shadow-lg z-10">
                 <Camera size={14} className="text-white" />
                 <input type="file" accept="image/*" className="hidden" disabled={uploadingAvatar} onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)} />
               </label>
             </div>
-            <div>
+            {/* FIX: min-w-0 e break-words per far andare a capo i testi lunghi */}
+            <div className="min-w-0">
               <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
-              <h2 className="text-3xl font-black">{profile.username}</h2>
+              <h2 className="text-3xl font-black break-words leading-tight">{profile.username}</h2>
             </div>
           </div>
 
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap md:justify-end">
             <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
               <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
               <p className="text-xl font-black">{reviews.length}</p>
@@ -209,7 +210,6 @@ export default function MyProfile() {
           </div>
         </div>
 
-        {/* FOOTER BADGE AGGIORNATO (Senza Titolo:, con livello dinamico a destra) */}
         <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center justify-between gap-4">
           <span className={`text-base sm:text-lg font-black tracking-wide italic truncate ${userBadge.color}`}>
             « {userBadge.title} »
