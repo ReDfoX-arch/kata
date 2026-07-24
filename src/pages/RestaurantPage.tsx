@@ -14,7 +14,6 @@ export default function RestaurantPage() {
   const [uploading, setUploading] = useState(false);
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
-  // Stati per i Preferiti
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
 
@@ -120,7 +119,6 @@ export default function RestaurantPage() {
     }
   };
 
-  // NUOVA LOGICA: Admin Delete per le Recensioni
   const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa recensione?')) return;
     try {
@@ -135,9 +133,13 @@ export default function RestaurantPage() {
   if (loading) return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento locale...</div>;
   if (!restaurant) return <div className="py-10 text-center font-bold text-red-500">Ristorante non trovato.</div>;
 
-  const avgScore = reviews.length > 0 
-    ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1)
-    : '0.0';
+  // --- CALCOLO DELLE 3 MEDIE MATEMATICHE ---
+  const meatReviews = reviews.filter(r => !r.is_vegetarian);
+  const vegReviews = reviews.filter(r => r.is_vegetarian);
+
+  const avgScore = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1) : '0.0';
+  const meatScore = meatReviews.length > 0 ? (meatReviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / meatReviews.length).toFixed(1) : 'NA';
+  const vegScore = vegReviews.length > 0 ? (vegReviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / vegReviews.length).toFixed(1) : 'NA';
 
   const lat = parseFloat(restaurant.lat);
   const lng = parseFloat(restaurant.lng);
@@ -193,10 +195,29 @@ export default function RestaurantPage() {
         </div>
 
         <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0 w-full md:w-auto">
-          <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[120px] self-start md:self-end">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Media</p>
-            <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
-            <p className="text-xs font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
+          
+          {/* NUOVO CRUSCOTTO DELLE 3 MEDIE */}
+          <div className="flex gap-2 self-start md:self-end w-full md:w-auto">
+            
+            {/* Box Media Globale (Grande) */}
+            <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[100px] flex-1 md:flex-none flex flex-col justify-center">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Globale</p>
+              <p className="text-3xl font-black text-slate-800">🌯 {avgScore}</p>
+              <p className="text-[10px] font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
+            </div>
+
+            {/* Box Medie Separate (Piccole, Incolonnate) */}
+            <div className="flex flex-col gap-2 flex-1 md:flex-none min-w-[80px]">
+              <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm px-3 py-1.5 rounded-lg text-center flex-1 flex flex-col justify-center">
+                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Carne</p>
+                <p className="text-xl font-black text-slate-800">🥙 {meatScore}</p>
+              </div>
+              <div className="bg-[#f4f7f3]/90 backdrop-blur-md border border-[#d5e0d3] shadow-sm px-3 py-1.5 rounded-lg text-center flex-1 flex flex-col justify-center">
+                <p className="text-[9px] font-bold text-[#5c7a52] uppercase tracking-widest">Veg</p>
+                <p className="text-xl font-black text-[#3f5737]">🧆 {vegScore}</p>
+              </div>
+            </div>
+
           </div>
           
           <div className="flex gap-2 w-full mt-2">
@@ -264,23 +285,29 @@ export default function RestaurantPage() {
         <div className="space-y-4">
           {reviews.map((rev) => {
             const canDeleteReview = isAdmin || (profile && profile.userId === rev.user_id);
+            const isVeg = rev.is_vegetarian;
+            
+            // Variabili di Stile Condizionali per recensioni Veg o Classiche
+            const cardBg = isVeg ? 'bg-[#f4f7f3] border-[#dce6d8]' : 'bg-white border-slate-200';
+            const textColor = isVeg ? 'text-[#3f5737]' : 'text-slate-800';
+            const iconEmoji = isVeg ? '🧆' : '🥙';
+            const boxBg = isVeg ? 'bg-[#eaf0e8]' : 'bg-slate-50';
 
             return (
-              <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                <div className="flex justify-between items-start border-b border-slate-100 pb-3 mb-3">
+              <div key={rev.id} className={`p-5 rounded-xl shadow-sm border ${cardBg}`}>
+                <div className={`flex justify-between items-start border-b pb-3 mb-3 ${isVeg ? 'border-[#dce6d8]' : 'border-slate-100'}`}>
                   <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
                     <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
                     <div>
-                      <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.display_username || rev.username}</h3>
-                      <p className="text-xs text-slate-400">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
+                      <h3 className={`font-bold group-hover:text-orange-600 transition-colors ${textColor}`}>{rev.display_username || rev.username}</h3>
+                      <p className={`text-xs ${isVeg ? 'text-[#6b8a61]' : 'text-slate-400'}`}>{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
                     </div>
                   </Link>
                   
                   <div className="flex items-center gap-4">
-                    <div className="text-2xl font-black text-slate-800">
-                      🌯 {rev.average_score}
+                    <div className={`text-2xl font-black ${textColor}`}>
+                      {iconEmoji} {rev.average_score}
                     </div>
-                    {/* BOTTONE ELIMINA RECENSIONE (Admin o Proprietario) */}
                     {canDeleteReview && (
                       <button
                         onClick={() => handleDeleteReview(rev.id)}
@@ -293,24 +320,32 @@ export default function RestaurantPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                  <div className="bg-slate-50 p-2 rounded-lg text-center">
-                    <p className="text-xs text-slate-500 font-bold uppercase">Location</p>
-                    <p className="font-black text-slate-700">{rev.score_location}</p>
+                <div className={`grid grid-cols-2 md:grid-cols-4 gap-2 text-sm`}>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
+                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Location</p>
+                    <p className={`font-black ${textColor}`}>{rev.score_location}</p>
                   </div>
-                  <div className="bg-slate-50 p-2 rounded-lg text-center">
-                    <p className="text-xs text-slate-500 font-bold uppercase">Menù</p>
-                    <p className="font-black text-slate-700">{rev.score_offer}</p>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
+                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Menù</p>
+                    <p className={`font-black ${textColor}`}>{rev.score_offer}</p>
                   </div>
-                  <div className="bg-slate-50 p-2 rounded-lg text-center">
-                    <p className="text-xs text-slate-500 font-bold uppercase">Conto</p>
-                    <p className="font-black text-slate-700">{rev.score_bill}</p>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
+                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Conto</p>
+                    <p className={`font-black ${textColor}`}>{rev.score_bill}</p>
                   </div>
-                  <div className="bg-slate-50 p-2 rounded-lg text-center">
-                    <p className="text-xs text-slate-500 font-bold uppercase">Gusto</p>
-                    <p className="font-black text-slate-700">{rev.score_menu}</p>
+                  <div className={`${boxBg} p-2 rounded-lg text-center`}>
+                    <p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Gusto</p>
+                    <p className={`font-black ${textColor}`}>{rev.score_menu}</p>
                   </div>
                 </div>
+
+                {/* Stampa del COMMENTO (se presente) */}
+                {rev.comment && (
+                  <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${isVeg ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
+                    « {rev.comment} »
+                  </div>
+                )}
+
               </div>
             );
           })}

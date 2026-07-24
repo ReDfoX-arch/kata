@@ -25,15 +25,28 @@ export default function Info() {
         <h3 className="text-xl font-black text-slate-800 mb-3 flex items-center gap-2">
           <Rocket className="text-orange-600" size={24} /> Cos'è KATA?
         </h3>
-        <p className="text-slate-600 leading-relaxed mb-4">
-          <strong>KATA</strong> - Kebab Analizzati, Testati e Approvati nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori kebabbari. 
-          Non è solo un'app di recensioni, ma uno strumento di analisi rigorosa basato su parametri chiari: Location, Menù, Conto e Gusto.
-            - Location: valutazione della posizione e accessibilità del locale.
-            - Menù: varietà e qualità delle opzioni offerte. La mancanza dei dolci o di opzioni vegetariane può influenzare il punteggio.
-            - Conto: rapporto qualità-prezzo e trasparenza dei costi. Da valutare in maniera oculata, considerando anche la valuta differente del paese.
-            - Gusto: esperienza complessiva del sapore e della presentazione del cibo. Il parametro più soggettivo, ma più importante.
-          Ogni recensione contribuisce a un ranking globale, permettendo agli utenti di scoprire i kebabbari più apprezzati in base a dati concreti e non solo opinioni soggettive.
-        </p>
+        <div className="text-slate-600 leading-relaxed mb-4">
+          <p>
+            <strong>KATA</strong> - Kebab Analizzati, Testati e Approvati nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori kebabbari. Non è solo un'app di recensioni, ma uno strumento di analisi rigorosa basato su parametri chiari.
+          </p>
+          <ul className="list-disc ml-6 mt-3 space-y-1">
+            <li>
+              <strong>Location:</strong> valutazione della posizione e accessibilità del locale.
+            </li>
+            <li>
+              <strong>Menù:</strong> varietà e qualità delle opzioni offerte. La mancanza dei dolci o di opzioni vegetariane può influenzare il punteggio.
+            </li>
+            <li>
+              <strong>Conto:</strong> rapporto qualità-prezzo e trasparenza dei costi. Da valutare in maniera oculata, considerando anche la valuta differente del paese.
+            </li>
+            <li>
+              <strong>Gusto:</strong> esperienza complessiva del sapore e della presentazione del cibo. Il parametro più soggettivo, ma più importante.
+            </li>
+          </ul>
+          <p className="mt-3">
+            Ogni recensione contribuisce a un ranking globale, permettendo agli utenti di scoprire i kebabbari più apprezzati in base a dati concreti e non solo opinioni soggettive.
+          </p>
+        </div>
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex items-start gap-3">
           <ShieldAlert className="text-blue-500 shrink-0 mt-0.5" size={20} />
           <p className="text-sm text-slate-500">

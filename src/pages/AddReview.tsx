@@ -10,7 +10,6 @@ export default function AddReview() {
   const { id: editId } = useParams();
   const isEditMode = !!editId;
   
-  // Stati per memorizzare i dati inseriti dall'utente
   const profile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
   const location = useLocation();
   const [reviewDate, setReviewDate] = useState(new Date().toISOString().split('T')[0]);
@@ -21,11 +20,15 @@ export default function AddReview() {
     bill: 0,
     menu: 0
   });
+  
+  // NUOVI STATI: Commento e Opzione Vegetariana
+  const [comment, setComment] = useState('');
+  const [isVegetarian, setIsVegetarian] = useState(false);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [error, setError] = useState('');
 
-  // Se la pagina è stata aperta da RestaurantPage con stato precompilato
   useEffect(() => {
     try {
       if (!isEditMode && (location as any)?.state?.restaurant) {
@@ -35,12 +38,10 @@ export default function AddReview() {
         }
       }
     } catch (e) {
-      // ignoriamo eventuali problemi di parsing dello state
       console.warn('No prefilled restaurant');
     }
   }, [isEditMode, location]);
 
-  // Carica i dati della recensione se in modalità edit
   useEffect(() => {
     if (!isEditMode) return;
     
@@ -58,14 +59,12 @@ export default function AddReview() {
           return;
         }
 
-        // Verifica che l'utente sia il proprietario
         if (review.user_id !== profile.userId) {
           setError('Non puoi modificare una recensione che non è tua.');
           setLoading(false);
           return;
         }
 
-        // Popola i campi
         setReviewDate(review.created_at.split('T')[0]);
         setRestaurant({
           name: review.restaurants.name,
@@ -80,6 +79,10 @@ export default function AddReview() {
           bill: review.score_bill,
           menu: review.score_menu
         });
+        // Popola i nuovi campi
+        setComment(review.comment || '');
+        setIsVegetarian(review.is_vegetarian || false);
+        
         setLoading(false);
       } catch (err: any) {
         console.error(err);
@@ -91,7 +94,6 @@ export default function AddReview() {
     fetchReview();
   }, [editId, profile.userId]);
 
-  // Calcolo automatico della media
   const values = Object.values(scores);
   const isAllVoted = values.every(v => v > 0);
   const average = isAllVoted ? (values.reduce((a, b) => a + b, 0) / 4).toFixed(1) : '0.0';
@@ -100,7 +102,6 @@ export default function AddReview() {
     setScores(prev => ({ ...prev, [category]: value }));
   };
 
-  // Validazione per prevenire voti unrealistic
   const validateScores = (): boolean => {
     const allMin = Object.values(scores).every(v => v === 1);
     const allMax = Object.values(scores).every(v => v === 10);
@@ -123,9 +124,7 @@ export default function AddReview() {
       return;
     }
 
-    if (!validateScores()) {
-      return;
-    }
+    if (!validateScores()) return;
 
     setIsSubmitting(true);
     setError('');
@@ -140,7 +139,6 @@ export default function AddReview() {
       const upperUsername = profile.username;
       let restaurantId = null;
 
-      // Cerchiamo se il ristorante è già nel database
       const { data: existingRest, error: searchRestError } = await supabase
         .from('restaurants')
         .select('id')
@@ -169,7 +167,6 @@ export default function AddReview() {
         restaurantId = newRest.id;
       }
 
-      // Formattazione sicura per la data
       let dateToSave = new Date().toISOString();
       if (reviewDate) {
         const parsedDate = new Date(reviewDate);
@@ -188,11 +185,12 @@ export default function AddReview() {
         score_offer: scores.offer,
         score_bill: scores.bill,
         score_menu: scores.menu,
-        created_at: dateToSave
+        created_at: dateToSave,
+        comment: comment.trim() || null, // Salva il commento
+        is_vegetarian: isVegetarian      // Salva il flag veg
       };
 
       if (isEditMode) {
-        // Aggiorna la recensione esistente
         const { error: updateError } = await supabase
           .from('reviews')
           .update(reviewData)
@@ -202,7 +200,6 @@ export default function AddReview() {
         if (updateError) throw updateError;
         alert('✅ Recensione aggiornata con successo!');
       } else {
-        // Crea una nuova recensione
         const { error: reviewError } = await supabase
           .from('reviews')
           .insert(reviewData);
@@ -221,9 +218,7 @@ export default function AddReview() {
     }
   };
 
-  if (loading) {
-    return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento...</div>;
-  }
+  if (loading) return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento...</div>;
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-slate-100 mt-4 mb-20 md:mb-4">
@@ -245,7 +240,6 @@ export default function AddReview() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         
-        {/* Sezione Username e Data */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
@@ -262,12 +256,43 @@ export default function AddReview() {
           </div>
         </div>
 
-        {/* Ricerca Ristorante */}
         <div className="pt-4 pb-2 border-t border-slate-100">
           <RestaurantSearch onSelect={setRestaurant} />
         </div>
 
-        {/* Sezione Voti */}
+        {/* NUOVA SEZIONE: Dettagli Extra (Vegetariano e Commento) */}
+        <div className="pt-4 pb-2 border-t border-slate-100 space-y-6">
+          {/* Toggle Vegetariano */}
+          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isVegetarian ? 'bg-[#f4f7f3] border-[#d5e0d3]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+            <input 
+              type="checkbox" 
+              checked={isVegetarian} 
+              onChange={(e) => setIsVegetarian(e.target.checked)} 
+              className="w-5 h-5 text-[#5c7a52] rounded focus:ring-[#5c7a52]" 
+            />
+            <div>
+              <p className={`font-bold flex items-center gap-2 ${isVegetarian ? 'text-[#3f5737]' : 'text-slate-700'}`}>
+                🧆 Opzione Vegetariana (Falafel)
+              </p>
+              <p className={`text-xs ${isVegetarian ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Contrassegna questa recensione come pasto vegetariano.</p>
+            </div>
+          </label>
+
+          {/* Area Commento */}
+          <div>
+            <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
+              Nota / Commento (Opzionale)
+            </label>
+            <textarea 
+              rows={3} 
+              placeholder="Es. Il pane era croccante e la salsa yogurt eccellente, ma troppa cipolla..." 
+              value={comment} 
+              onChange={(e) => setComment(e.target.value)} 
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
+            />
+          </div>
+        </div>
+
         <div className="pt-4 border-t border-slate-100">
           <ScoreGroup label="Location" value={scores.location} onChange={(v) => handleScoreChange('location', v)} />
           <ScoreGroup label="Menù" value={scores.offer} onChange={(v) => handleScoreChange('offer', v)} />
@@ -275,12 +300,11 @@ export default function AddReview() {
           <ScoreGroup label="Gusto" value={scores.menu} onChange={(v) => handleScoreChange('menu', v)} />
         </div>
 
-        {/* Sezione Risultato e Invio */}
         <div className="bg-slate-50 p-6 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200">
           <div className="text-center sm:text-left">
             <p className="text-slate-500 font-bold uppercase text-xs tracking-wider mb-1">Punteggio Finale</p>
             <p className="text-4xl font-black text-slate-800">
-              🌯 {average} <span className="text-xl text-slate-400 font-medium">/ 10</span>
+              {isVegetarian ? '🧆' : '🌯'} {average} <span className="text-xl text-slate-400 font-medium">/ 10</span>
             </p>
           </div>
           
