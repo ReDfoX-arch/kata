@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate} from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { MapPin, ArrowLeft } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
