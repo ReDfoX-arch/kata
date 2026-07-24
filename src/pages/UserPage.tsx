@@ -62,7 +62,6 @@ export default function UserProfile() {
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* HEADER PROFILO (con Footer Badge) */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
         <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
@@ -93,12 +92,12 @@ export default function UserProfile() {
           </div>
         </div>
 
-        {/* Parte Bassa (Footer del Badge) */}
-        <div className="bg-black/20 px-8 py-3 border-t border-white/5 flex items-center">
-          <p className="text-xs sm:text-sm">
-            <span className="font-bold text-slate-400 uppercase tracking-widest mr-2">Titolo:</span>
-            <span className={`font-black tracking-wide ${userBadge.color}`}>"{userBadge.title}"</span>
-          </p>
+        {/* FOOTER BADGE AGGIORNATO (Più grande, corsivo e parentesi uncinate) */}
+        <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center flex-wrap gap-2">
+          <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Titolo:</span>
+          <span className={`text-base sm:text-lg font-black tracking-wide italic ${userBadge.color}`}>
+            « {userBadge.title} »
+          </span>
         </div>
 
       </div>

@@ -10,7 +10,6 @@ type Profile = {
   isAdmin?: boolean;
 };
 
-// Logica per calcolare il Badge
 const getBadgeInfo = (count: number) => {
   if (count >= 30) return { title: 'Sultano del Sacro Spiedo', color: 'text-yellow-400' };
   if (count >= 20) return { title: 'Gran Visir del Döner', color: 'text-fuchsia-400' };
@@ -156,10 +155,8 @@ export default function MyProfile() {
         </div>
       )}
 
-      {/* Riquadro Header Aggiornato (Flex Column) */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
         
-        {/* Parte Superiore: Info + Stats */}
         <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -196,12 +193,12 @@ export default function MyProfile() {
           </div>
         </div>
 
-        {/* Parte Bassa (Footer del Badge) */}
-        <div className="bg-black/20 px-8 py-3 border-t border-white/5 flex items-center">
-          <p className="text-xs sm:text-sm">
-            <span className="font-bold text-slate-400 uppercase tracking-widest mr-2">Titolo:</span>
-            <span className={`font-black tracking-wide ${userBadge.color}`}>"{userBadge.title}"</span>
-          </p>
+        {/* FOOTER BADGE AGGIORNATO (Più grande, corsivo e parentesi uncinate) */}
+        <div className="bg-black/20 px-8 py-4 border-t border-white/5 flex items-center flex-wrap gap-2">
+          <span className="text-xs sm:text-sm font-bold text-slate-400 uppercase tracking-widest">Titolo:</span>
+          <span className={`text-base sm:text-lg font-black tracking-wide italic ${userBadge.color}`}>
+            « {userBadge.title} »
+          </span>
         </div>
 
       </div>
