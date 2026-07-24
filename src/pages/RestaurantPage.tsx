@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2 } from 'lucide-react';
+import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 export default function RestaurantPage() {
@@ -12,8 +12,10 @@ export default function RestaurantPage() {
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  
+  // Nuovo stato per la visualizzazione a schermo intero
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
-  // Leggiamo i permessi dal localStorage
   const profile = (() => {
     try { return JSON.parse(localStorage.getItem('kata_profile') || 'null'); } 
     catch { return null; }
@@ -53,6 +55,7 @@ export default function RestaurantPage() {
     if (!file) return;
     if (!file.type.startsWith('image/')) return alert('Puoi caricare solo immagini.');
     if (file.size > 5_000_000) return alert('La foto non deve superare i 5 MB.');
+    if (!profile) return alert('Devi aver creato un profilo per caricare foto.');
     
     setUploading(true);
     try {
@@ -64,9 +67,11 @@ export default function RestaurantPage() {
       
       const { data: publicUrlData } = supabase.storage.from('gallery').getPublicUrl(fileName);
       
+      // Inseriamo anche l'ID dell'utente che ha caricato la foto
       const { data: newPhoto, error: dbError } = await supabase.from('restaurant_photos').insert({
         restaurant_id: id,
-        url: publicUrlData.publicUrl
+        url: publicUrlData.publicUrl,
+        user_id: profile.userId
       }).select().single();
       
       if (dbError) throw dbError;
@@ -115,11 +120,33 @@ export default function RestaurantPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
+      
+      {/* OVERLAY MODAL FOTO A TUTTO SCHERMO */}
+      {zoomedPhoto && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setZoomedPhoto(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white hover:text-orange-500 bg-black/50 p-2 rounded-full transition-colors"
+            onClick={() => setZoomedPhoto(null)}
+          >
+            <X size={32} />
+          </button>
+          <img 
+            src={zoomedPhoto} 
+            alt="Ingrandimento" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+            onClick={(e) => e.stopPropagation()} // Evita che cliccando la foto si chiuda il modal
+          />
+        </div>
+      )}
+
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm">
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* Intestazione Ristorante (Immutata) */}
+      {/* Intestazione Ristorante */}
       <div className="relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row justify-between md:items-center min-h-[220px]">
         <div className="absolute inset-0 z-0 pointer-events-none rounded-xl overflow-hidden">
           <div className="absolute right-0 bottom-0 top-[40%] md:top-0 left-0 md:left-[30%] overflow-hidden">
@@ -157,44 +184,57 @@ export default function RestaurantPage() {
         </div>
       </div>
 
-      {/* NUOVA SEZIONE: Galleria Fotografica Ufficiale */}
-      {(photos.length > 0 || isAdmin) && (
-        <div className="mt-8 mb-4">
-          <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
-            <Camera size={24} className="text-slate-500" /> Galleria Ufficiale
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {photos.map(photo => (
-              <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100">
+      {/* SEZIONE: Galleria Fotografica Pubblica */}
+      <div className="mt-8 mb-4">
+        <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+          <Camera size={24} className="text-slate-500" /> Foto del Locale
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {photos.map(photo => {
+            // Un utente può cancellare la foto se è l'Admin, OPPURE se l'ha caricata lui stesso
+            const canDelete = isAdmin || (profile && photo.user_id === profile.userId);
+            
+            return (
+              <div 
+                key={photo.id} 
+                className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100 cursor-pointer"
+                onClick={() => setZoomedPhoto(photo.url)} // Click per aprire fullscreen
+              >
                 <img src={photo.url} alt="Scatto locale" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-                {/* Il tasto cestino appare solo se sei Admin ed effettui un hover sull'immagine */}
-                {isAdmin && (
-                  <button onClick={() => handleDeletePhoto(photo.id)} className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm">
+                
+                {canDelete && (
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); // Evita che si apra l'immagine a schermo intero quando si clicca il cestino
+                      handleDeletePhoto(photo.id); 
+                    }} 
+                    className="absolute top-2 right-2 p-2 bg-red-600/90 hover:bg-red-700 text-white rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shadow-md backdrop-blur-sm"
+                  >
                     <Trash2 size={16} />
                   </button>
                 )}
               </div>
-            ))}
-            
-            {/* Box di caricamento visibile ESCLUSIVAMENTE all'Admin */}
-            {isAdmin && (
-              <label className="relative aspect-square rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-slate-500 group overflow-hidden">
-                {uploading ? (
-                  <Loader2 className="animate-spin text-orange-500" size={32} />
-                ) : (
-                  <>
-                    <ImagePlus size={32} className="mb-2 group-hover:text-orange-500 transition-colors group-hover:scale-110 duration-300" />
-                    <span className="text-xs font-bold uppercase tracking-wider group-hover:text-orange-600 transition-colors">Aggiungi Foto</span>
-                  </>
-                )}
-                <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handlePhotoUpload} />
-              </label>
-            )}
-          </div>
+            );
+          })}
+          
+          {/* Box di caricamento ora visibile a TUTTI gli utenti con profilo */}
+          {profile && (
+            <label className="relative aspect-square rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-orange-50 hover:border-orange-500 transition-colors cursor-pointer flex flex-col items-center justify-center text-slate-500 group overflow-hidden">
+              {uploading ? (
+                <Loader2 className="animate-spin text-orange-500" size={32} />
+              ) : (
+                <>
+                  <ImagePlus size={32} className="mb-2 group-hover:text-orange-500 transition-colors group-hover:scale-110 duration-300" />
+                  <span className="text-xs font-bold uppercase tracking-wider group-hover:text-orange-600 transition-colors text-center px-2">Aggiungi Foto</span>
+                </>
+              )}
+              <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handlePhotoUpload} />
+            </label>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* Lista Recensioni (Immutata) */}
+      {/* Lista Recensioni */}
       <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4">Tutte le recensioni</h2>
       {reviews.length === 0 ? (
         <p className="text-slate-500">Nessuna recensione ancora presente.</p>
