@@ -188,8 +188,11 @@ export default function Stats() {
           <p className="text-2xl font-black text-purple-600">{stats.uniqueCountries}</p>
           <p className="text-xs font-bold text-purple-700 uppercase mt-1 tracking-wider">Paesi Visitati</p>
         </div>
-        <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center">
-          <p className="text-2xl font-black text-green-600">{stats.uniqueContinents}</p>
+        <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center flex flex-col items-center">
+          <div className="flex items-baseline gap-0.5">
+            <p className="text-2xl font-black text-green-600">{stats.uniqueContinents}</p>
+            <span className="text-base font-bold text-green-400/80">/7</span>
+          </div>
           <p className="text-xs font-bold text-green-700 uppercase mt-1 tracking-wider">Continenti</p>
         </div>
       </div>
