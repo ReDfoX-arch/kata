@@ -26,7 +26,7 @@ export default function Info() {
           <Rocket className="text-orange-600" size={24} /> Cos'è KATA?
         </h3>
         <p className="text-slate-600 leading-relaxed mb-4">
-          <strong>KATA</strong> (Kebab Analizzati, Testati e Approvati) nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori locali. 
+          <strong>KATA</strong> - Kebab Analizzati, Testati e Approvati nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori locali. 
           Non è solo un'app di recensioni, ma uno strumento di analisi rigorosa basato su parametri chiari: Location, Menù, Conto e Gusto.
         </p>
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex items-start gap-3">

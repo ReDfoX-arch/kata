@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, User as UserIcon, LogOut, Loader2 } from 'lucide-react';
+import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X } from 'lucide-react';
 
 type Profile = {
   username: string;
   userId: string;
   avatar?: string | null;
+  isAdmin?: boolean;
 };
 
 export default function MyProfile() {
@@ -26,6 +27,9 @@ export default function MyProfile() {
   const [pinConfirm, setPinConfirm] = useState('');
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // NUOVO: Stato per gestire l'ingrandimento della foto profilo
+  const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile || !profile.userId) {
@@ -67,8 +71,8 @@ export default function MyProfile() {
       setError('Scegli un file immagine valido.');
       return;
     }
-    if (file.size > 2_000_000) {
-      setError('L\'immagine deve essere inferiore a 2 MB.');
+    if (file.size > 5_000_000) {
+      setError('L\'immagine deve essere inferiore a 5 MB.');
       return;
     }
 
@@ -76,25 +80,21 @@ export default function MyProfile() {
       setUploadingAvatar(true);
       setError('');
       
-      // Creiamo un nome file univoco per evitare cache del browser (usando Date.now())
       const fileExt = file.name.split('.').pop();
       const fileName = `${profile.userId}-${Date.now()}.${fileExt}`;
       
-      // 1. Carica l'immagine nel bucket "avatars" su Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      // 2. Ottieni l'URL pubblico dell'immagine caricata
       const { data: publicUrlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // 3. Aggiorna il database con il nuovo URL
       const { error: updateError } = await supabase
         .from('users')
         .update({ avatar: publicUrl })
@@ -102,7 +102,6 @@ export default function MyProfile() {
 
       if (updateError) throw updateError;
 
-      // 4. Aggiorna lo stato locale e il localStorage
       setAvatar(publicUrl);
       const updatedProfile = { ...profile, avatar: publicUrl };
       localStorage.setItem('kata_profile', JSON.stringify(updatedProfile));
@@ -115,7 +114,6 @@ export default function MyProfile() {
       setUploadingAvatar(false);
     }
   };
-
 
   const handleDeleteProfile = async () => {
     if (!confirm('Sei sicuro di voler eliminare il profilo? Questa operazione rimuoverà tutte le tue recensioni e non è reversibile.')) return;
@@ -198,34 +196,59 @@ export default function MyProfile() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
+      
+      {/* OVERLAY MODAL FOTO A TUTTO SCHERMO */}
+      {zoomedAvatar && (
+        <div 
+          className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
+          onClick={() => setZoomedAvatar(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white hover:text-orange-500 bg-black/50 p-2 rounded-full transition-colors"
+            onClick={() => setZoomedAvatar(null)}
+          >
+            <X size={32} />
+          </button>
+          <img 
+            src={zoomedAvatar} 
+            alt="Ingrandimento Avatar" 
+            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <label className={`relative ${!uploadingAvatar ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}>
-            {uploadingAvatar ? (
-              <div className="w-20 h-20 rounded-full bg-slate-700 border-4 border-slate-600 flex items-center justify-center shadow-lg">
+          
+          {/* FOTO PROFILO - Separata la logica di zoom da quella di modifica */}
+          <div className="relative">
+            <div 
+              className={`w-20 h-20 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+              onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}
+            >
+              {uploadingAvatar ? (
                 <Loader2 size={32} className="text-white animate-spin" />
-              </div>
-            ) : avatar ? (
-              <img src={avatar} alt="Avatar profilo" className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg bg-white" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-white/20 border-4 border-transparent flex items-center justify-center backdrop-blur-sm shadow-lg">
-                <UserIcon size={40} className="text-white" />
-              </div>
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={uploadingAvatar}
-              onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
-            />
-            {/* Piccolo badge "+"" per far capire che è cliccabile */}
-            {!uploadingAvatar && (
-               <div className="absolute bottom-0 right-0 bg-orange-500 rounded-full p-1 border-2 border-slate-900">
-                  <span className="block text-white text-xs font-bold leading-none">+</span>
-               </div>
-            )}
-          </label>
+              ) : avatar ? (
+                <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover bg-white" />
+              ) : (
+                <UserIcon size={40} className="text-white/50" />
+              )}
+            </div>
+            
+            {/* Pulsante dedicato per modificare la foto */}
+            <label className="absolute bottom-0 right-0 bg-orange-500 hover:bg-orange-600 transition-colors p-2 rounded-full border-2 border-slate-900 cursor-pointer shadow-lg z-10">
+              <Camera size={14} className="text-white" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingAvatar}
+                onChange={(e) => handleAvatarChange(e.target.files?.[0] || null)}
+              />
+            </label>
+          </div>
+
           <div>
             <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Il mio Profilo</h1>
             <h2 className="text-3xl font-black">{profile.username}</h2>
@@ -279,7 +302,6 @@ export default function MyProfile() {
         <p className="text-slate-500">Non hai ancora scritto recensioni.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* ... il resto del componente rimane invariato */}
           {reviews.map((rev) => (
             <div key={rev.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
               <div className="flex justify-between items-start mb-2">
