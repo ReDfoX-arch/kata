@@ -51,7 +51,7 @@ function App() {
                   KATA
                 </h1>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                  KATA - Kebab Analizzati, Testati e Approvati
+                  Kebab Analizzati, Testati e Approvati
                 </span>
               </div>
             </Link>
