@@ -19,7 +19,7 @@ export default function Stats() {
     allRestaurants: [] as any[]
   });
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState('avgScore'); // 'avgScore' o 'reviewCount'
+  const [sortBy, setSortBy] = useState('avgScore');
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -29,7 +29,6 @@ export default function Stats() {
       const { data: users } = await supabase.from('users').select('*');
 
       if (rests && revs && revs.length > 0) {
-        // Calcolo punteggi per ristorante
         const calculatedRests = rests.map(r => {
           const rRevs = revs.filter(rev => rev.restaurant_id === r.id);
           const avg = rRevs.length > 0 ? rRevs.reduce((acc, curr) => acc + Number(curr.average_score), 0) / rRevs.length : 0;
@@ -37,33 +36,29 @@ export default function Stats() {
         }).filter(r => r.avgScore > 0);
 
         calculatedRests.sort((a, b) => b.avgScore - a.avgScore);
-        
-        // Media globale del sito
         const globalSum = revs.reduce((acc, curr) => acc + Number(curr.average_score), 0);
         
-        // Calcolo Top 3 utenti per numero di recensioni
         const userStats = (users || []).map(u => ({
           ...u,
           reviewCount: revs.filter(r => r.user_id === u.secret_id).length
         })).filter(u => u.reviewCount > 0).sort((a, b) => b.reviewCount - a.reviewCount).slice(0, 3);
 
-        // Calcolo statistiche geografiche
-        const uniqueCities = new Set(rests.map((r: any) => r.city)).size;
-        const uniqueCountries = new Set(rests.map((r: any) => r.country)).size;
+        const uniqueCities = new Set(rests.map((r: any) => r.city?.trim())).size;
+        const uniqueCountries = new Set(rests.map((r: any) => r.country?.trim())).size;
         
-        // Mapping paesi a continenti
+        // Pulito il dizionario dagli spazi
         const countryToContinent: Record<string, string> = {
-          ' Albania': 'Europe', ' Andorra': 'Europe', ' Austria': 'Europe', ' Belarus': 'Europe', ' Belgium': 'Europe', ' Bosnia and Herzegovina': 'Europe', ' Bosnia': 'Europe', ' Bulgaria': 'Europe', ' Croatia': 'Europe', ' Cyprus': 'Europe', ' Czech Republic': 'Europe', ' Denmark': 'Europe', ' Estonia': 'Europe', ' Finland': 'Europe', ' France': 'Europe', ' Germany': 'Europe', ' Greece': 'Europe', ' Hungary': 'Europe', ' Iceland': 'Europe', ' Ireland': 'Europe', ' Italy': 'Europe', ' Kosovo': 'Europe', ' Latvia': 'Europe', ' Liechtenstein': 'Europe', ' Lithuania': 'Europe', ' Luxembourg': 'Europe', ' Malta': 'Europe', ' Moldova': 'Europe', ' Monaco': 'Europe', ' Montenegro': 'Europe', ' Netherlands': 'Europe', ' North Macedonia': 'Europe', ' Norway': 'Europe', ' Poland': 'Europe', ' Portugal': 'Europe', ' Romania': 'Europe', ' Russia': 'Europe', ' San Marino': 'Europe', ' Serbia': 'Europe', ' Slovakia': 'Europe', ' Slovenia': 'Europe', ' Spain': 'Europe', ' Sweden': 'Europe', ' Switzerland': 'Europe', ' Ukraine': 'Europe', ' United Kingdom': 'Europe', ' Vatican City': 'Europe',
-          ' Afghanistan': 'Asia', ' Armenia': 'Asia', ' Azerbaijan': 'Asia', ' Bahrain': 'Asia', ' Bangladesh': 'Asia', ' Bhutan': 'Asia', ' Brunei': 'Asia', ' Cambodia': 'Asia', ' China': 'Asia', ' Georgia': 'Asia', ' Hong Kong': 'Asia', ' India': 'Asia', ' Indonesia': 'Asia', ' Iran': 'Asia', ' Iraq': 'Asia', ' Israel': 'Asia', ' Japan': 'Asia', ' Jordan': 'Asia', ' Kazakhstan': 'Asia', ' Kuwait': 'Asia', ' Kyrgyzstan': 'Asia', ' Laos': 'Asia', ' Lebanon': 'Asia', ' Macau': 'Asia', ' Malaysia': 'Asia', ' Maldives': 'Asia', ' Mongolia': 'Asia', ' Myanmar': 'Asia', ' Nepal': 'Asia', ' North Korea': 'Asia', ' Oman': 'Asia', ' Pakistan': 'Asia', ' Palestine': 'Asia', ' Philippines': 'Asia', ' Qatar': 'Asia', ' Saudi Arabia': 'Asia', ' Singapore': 'Asia', ' South Korea': 'Asia', ' Sri Lanka': 'Asia', ' Syria': 'Asia', ' Taiwan': 'Asia', ' Tajikistan': 'Asia', ' Thailand': 'Asia', ' Timor-Leste': 'Asia', ' Turkey': 'Asia', ' Turkmenistan': 'Asia', ' United Arab Emirates': 'Asia', ' Uzbekistan': 'Asia', ' Vietnam': 'Asia', ' Yemen': 'Asia',
-          ' Canada': 'North America', ' Mexico': 'North America', ' United States': 'North America', ' Cuba': 'North America', ' Jamaica': 'North America', ' Haiti': 'North America', ' Dominican Republic': 'North America', ' Panama': 'North America', ' Costa Rica': 'North America', ' Greenland': 'North America',
-          ' Argentina': 'South America', ' Bolivia': 'South America', ' Brazil': 'South America', ' Chile': 'South America', ' Colombia': 'South America', ' Ecuador': 'South America', ' Paraguay': 'South America', ' Peru': 'South America', ' Uruguay': 'South America', ' Venezuela': 'South America',
-          ' Australia': 'Oceania', ' New Zealand': 'Oceania', ' Fiji': 'Oceania', ' Papua New Guinea': 'Oceania',
-          ' Algeria': 'Africa', ' Egypt': 'Africa', ' Libya': 'Africa', ' Morocco': 'Africa', ' Tunisia': 'Africa', ' South Africa': 'Africa', ' Nigeria': 'Africa', ' Kenya': 'Africa', ' Ethiopia': 'Africa', ' Ghana': 'Africa', ' Senegal': 'Africa'
+          'Albania': 'Europe', 'Andorra': 'Europe', 'Austria': 'Europe', 'Belarus': 'Europe', 'Belgium': 'Europe', 'Bosnia and Herzegovina': 'Europe', 'Bosnia': 'Europe', 'Bulgaria': 'Europe', 'Croatia': 'Europe', 'Cyprus': 'Europe', 'Czech Republic': 'Europe', 'Denmark': 'Europe', 'Estonia': 'Europe', 'Finland': 'Europe', 'France': 'Europe', 'Germany': 'Europe', 'Greece': 'Europe', 'Hungary': 'Europe', 'Iceland': 'Europe', 'Ireland': 'Europe', 'Italy': 'Europe', 'Kosovo': 'Europe', 'Latvia': 'Europe', 'Liechtenstein': 'Europe', 'Lithuania': 'Europe', 'Luxembourg': 'Europe', 'Malta': 'Europe', 'Moldova': 'Europe', 'Monaco': 'Europe', 'Montenegro': 'Europe', 'Netherlands': 'Europe', 'North Macedonia': 'Europe', 'Norway': 'Europe', 'Poland': 'Europe', 'Portugal': 'Europe', 'Romania': 'Europe', 'Russia': 'Europe', 'San Marino': 'Europe', 'Serbia': 'Europe', 'Slovakia': 'Europe', 'Slovenia': 'Europe', 'Spain': 'Europe', 'Sweden': 'Europe', 'Switzerland': 'Europe', 'Ukraine': 'Europe', 'United Kingdom': 'Europe', 'Vatican City': 'Europe',
+          'Afghanistan': 'Asia', 'Armenia': 'Asia', 'Azerbaijan': 'Asia', 'Bahrain': 'Asia', 'Bangladesh': 'Asia', 'Bhutan': 'Asia', 'Brunei': 'Asia', 'Cambodia': 'Asia', 'China': 'Asia', 'Georgia': 'Asia', 'Hong Kong': 'Asia', 'India': 'Asia', 'Indonesia': 'Asia', 'Iran': 'Asia', 'Iraq': 'Asia', 'Israel': 'Asia', 'Japan': 'Asia', 'Jordan': 'Asia', 'Kazakhstan': 'Asia', 'Kuwait': 'Asia', 'Kyrgyzstan': 'Asia', 'Laos': 'Asia', 'Lebanon': 'Asia', 'Macau': 'Asia', 'Malaysia': 'Asia', 'Maldives': 'Asia', 'Mongolia': 'Asia', 'Myanmar': 'Asia', 'Nepal': 'Asia', 'North Korea': 'Asia', 'Oman': 'Asia', 'Pakistan': 'Asia', 'Palestine': 'Asia', 'Philippines': 'Asia', 'Qatar': 'Asia', 'Saudi Arabia': 'Asia', 'Singapore': 'Asia', 'South Korea': 'Asia', 'Sri Lanka': 'Asia', 'Syria': 'Asia', 'Taiwan': 'Asia', 'Tajikistan': 'Asia', 'Thailand': 'Asia', 'Timor-Leste': 'Asia', 'Turkey': 'Asia', 'Turkmenistan': 'Asia', 'United Arab Emirates': 'Asia', 'Uzbekistan': 'Asia', 'Vietnam': 'Asia', 'Yemen': 'Asia',
+          'Canada': 'North America', 'Mexico': 'North America', 'United States': 'North America', 'Cuba': 'North America', 'Jamaica': 'North America', 'Haiti': 'North America', 'Dominican Republic': 'North America', 'Panama': 'North America', 'Costa Rica': 'North America', 'Greenland': 'North America',
+          'Argentina': 'South America', 'Bolivia': 'South America', 'Brazil': 'South America', 'Chile': 'South America', 'Colombia': 'South America', 'Ecuador': 'South America', 'Paraguay': 'South America', 'Peru': 'South America', 'Uruguay': 'South America', 'Venezuela': 'South America',
+          'Australia': 'Oceania', 'New Zealand': 'Oceania', 'Fiji': 'Oceania', 'Papua New Guinea': 'Oceania',
+          'Algeria': 'Africa', 'Egypt': 'Africa', 'Libya': 'Africa', 'Morocco': 'Africa', 'Tunisia': 'Africa', 'South Africa': 'Africa', 'Nigeria': 'Africa', 'Kenya': 'Africa', 'Ethiopia': 'Africa', 'Ghana': 'Africa', 'Senegal': 'Africa'
         };
 
         const uniqueContinents = new Set(
           rests
-            .map((r: any) => countryToContinent[r.country] || 'Sconosciuto')
+            .map((r: any) => countryToContinent[r.country?.trim()] || 'Sconosciuto')
             .filter((c: string) => c !== 'Sconosciuto')
         ).size;
 
@@ -94,7 +89,6 @@ export default function Stats() {
         <BarChart2 className="text-blue-500" size={32} /> Statistiche
       </h2>
 
-      {/* Numeri Globali (Immutati) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center">
           <Hash className="text-slate-400 mb-2" />
@@ -118,7 +112,6 @@ export default function Stats() {
         </div>
       </div>
 
-      {/* Statistiche Geografiche (Immutati) */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-center">
           <p className="text-2xl font-black text-blue-600">{stats.uniqueCities}</p>
@@ -131,20 +124,18 @@ export default function Stats() {
         <div className="bg-green-50 border border-green-200 p-4 rounded-xl text-center flex flex-col items-center justify-center">
           <div className="flex items-baseline gap-0.5">
             <p className="text-2xl font-black text-green-600">{stats.uniqueContinents}</p>
-            <span className="text-base font-bold text-green-400/80">/ 7</span>
+            <span className="text-base font-bold text-green-400/80">/7</span>
           </div>
           <p className="text-xs font-bold text-green-700 uppercase mt-1 tracking-wider">Continenti</p>
         </div>
       </div>
 
-      {/* Migliore e Peggiore */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {stats.bestKebab && (
           <div className="bg-green-50 border border-green-200 p-6 rounded-xl flex flex-col justify-center">
             <h3 className="text-green-800 font-extrabold flex items-center gap-2 mb-2 uppercase text-sm tracking-wider">
               <Award size={18}/> Kebab d'Oro
             </h3>
-            {/* AGGIUNTO IL LINK AL LOCALE */}
             <Link to={`/restaurant/${stats.bestKebab.id}`} className="text-2xl font-black text-slate-800 hover:text-green-700 transition-colors">
               {stats.bestKebab.name}
             </Link>
@@ -158,7 +149,6 @@ export default function Stats() {
             <h3 className="text-red-800 font-extrabold flex items-center gap-2 mb-2 uppercase text-sm tracking-wider">
               <AlertTriangle size={18}/> Kebab Marcio
             </h3>
-            {/* AGGIUNTO IL LINK AL LOCALE */}
             <Link to={`/restaurant/${stats.worstKebab.id}`} className="text-2xl font-black text-slate-800 hover:text-red-700 transition-colors">
               {stats.worstKebab.name}
             </Link>
@@ -168,7 +158,6 @@ export default function Stats() {
         )}
       </div>
 
-      {/* Kebab Kings - Top 3 Utenti */}
       {stats.topUsers.length > 0 && (
         <div className="mt-8">
           <h3 className="text-2xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
@@ -180,17 +169,10 @@ export default function Stats() {
                 {index === 0 && <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg">👑 1°</div>}
                 {index === 1 && <div className="absolute top-0 right-0 bg-slate-400 text-slate-50 text-xs font-bold px-3 py-1 rounded-bl-lg">🥈 2°</div>}
                 {index === 2 && <div className="absolute top-0 right-0 bg-orange-400 text-orange-50 text-xs font-bold px-3 py-1 rounded-bl-lg">🥉 3°</div>}
-                
                 <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="mb-4" />
-                
-                {/* AGGIUNTO IL LINK AL PROFILO UTENTE */}
-                <Link 
-                  to={`/user/${user.username}`} 
-                  className="font-bold text-lg text-slate-800 mb-1 hover:text-orange-600 transition-colors"
-                >
+                <Link to={`/user/${user.username}`} className="font-bold text-lg text-slate-800 mb-1 hover:text-orange-600 transition-colors">
                   {user.username}
                 </Link>
-                
                 <p className="text-3xl font-black text-orange-600 mb-2">{user.reviewCount}</p>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recensioni</p>
               </div>
@@ -199,7 +181,6 @@ export default function Stats() {
         </div>
       )}
 
-      {/* Tabella Ristoranti con Sorting */}
       {stats.allRestaurants.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -208,9 +189,7 @@ export default function Stats() {
               <button
                 onClick={() => setSortBy('avgScore')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition ${
-                  sortBy === 'avgScore'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  sortBy === 'avgScore' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                 }`}
               >
                 Valutazione
@@ -218,23 +197,19 @@ export default function Stats() {
               <button
                 onClick={() => setSortBy('reviewCount')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition ${
-                  sortBy === 'reviewCount'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                  sortBy === 'reviewCount' ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
                 }`}
               >
                 Numero Recensioni
               </button>
             </div>
           </div>
-          
           <div className="space-y-3">
             {stats.allRestaurants
               .sort((a, b) => (sortBy === 'avgScore' ? b.avgScore - a.avgScore : b.reviewCount - a.reviewCount))
               .map((restaurant) => (
                 <div key={restaurant.id} className="bg-white border border-slate-200 p-4 rounded-lg shadow-sm flex items-center justify-between hover:shadow-md transition">
                   <div className="flex-1 min-w-0 pr-4">
-                    {/* AGGIUNTO IL LINK AL LOCALE NELL'ELENCO */}
                     <Link to={`/restaurant/${restaurant.id}`} className="font-bold text-slate-800 hover:text-orange-600 transition-colors block text-lg truncate">
                       {restaurant.name}
                     </Link>
