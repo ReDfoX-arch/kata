@@ -1,17 +1,17 @@
-import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code, Camera } from 'lucide-react';
+import { Info as InfoIcon, Mail, GitCommit, Heart, ShieldAlert, Rocket, Code} from 'lucide-react';
 
 export default function Info() {
   // Array statico per il Changelog. 
   // Aggiornalo tu manualmente con gli ultimi 10 commit quando fai un rilascio.
   const changelog = [
-    { version: 'v1.3.0', date: '24/07/2026', message: 'Aggiunta pagina Info, crediti e logica versioning' },
-    { version: 'v1.2.1', date: '24/07/2026', message: 'Risolto bug iframe mappa con URI encoding %2C' },
-    { version: 'v1.2.0', date: '24/07/2026', message: 'Layout mobile mappa ristorante e hide controlli zoom' },
-    { version: 'v1.1.5', date: '24/07/2026', message: 'Migliorata UI statistiche continenti visitati (x/7)' },
-    { version: 'v1.1.0', date: '23/07/2026', message: 'Aggiunta ricerca case-insensitive e fix pulsante manuale' },
-    { version: 'v1.0.5', date: '23/07/2026', message: 'Setup Supabase Storage per avatar pubblici globali' },
-    { version: 'v1.0.1', date: '23/07/2026', message: 'Aggiunto Lazy Loading e Suspense per ottimizzazione chunk' },
-    { version: 'v1.0.0', date: '22/07/2026', message: 'Primo rilascio KATA in produzione' },
+    // { version: 'vxx', date: 'xx/xx/2026', message: 'xx' },
+    { version: 'v1.5', date: '24/07/2026', message: 'Aggiunta galleria foto per i locali' },
+    { version: 'v1.4', date: '24/07/2026', message: 'Aggiunta pagina Info, crediti e changelog' },
+    { version: 'v1.3', date: '24/07/2026', message: 'Layout mappa ristorante in trasparenza' },
+    { version: 'v1.2', date: '23/07/2026', message: 'Aggiunta ricerca case-insensitive e pulsante per aggiunta manuale' },
+    { version: 'v1.1', date: '23/07/2026', message: 'Setup storage per avatar pubblici globali' },
+    { version: 'v1.0', date: '23/07/2026', message: 'Aggiunta di profili personali con credenziali univoche e possibilità di login/logout' },
+    { version: 'v0.0', date: '22/07/2026', message: 'Primo rilascio KATA in produzione' },
   ];
 
   return (
@@ -26,13 +26,18 @@ export default function Info() {
           <Rocket className="text-orange-600" size={24} /> Cos'è KATA?
         </h3>
         <p className="text-slate-600 leading-relaxed mb-4">
-          <strong>KATA</strong> - Kebab Analizzati, Testati e Approvati nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori locali. 
+          <strong>KATA</strong> - Kebab Analizzati, Testati e Approvati nasce come l'hub definitivo per recensire, catalogare e scoprire i migliori kebabbari. 
           Non è solo un'app di recensioni, ma uno strumento di analisi rigorosa basato su parametri chiari: Location, Menù, Conto e Gusto.
+            - Location: valutazione della posizione e accessibilità del locale.
+            - Menù: varietà e qualità delle opzioni offerte. La mancanza dei dolci o di opzioni vegetariane può influenzare il punteggio.
+            - Conto: rapporto qualità-prezzo e trasparenza dei costi. Da valutare in maniera oculata, considerando anche la valuta differente del paese.
+            - Gusto: esperienza complessiva del sapore e della presentazione del cibo. Il parametro più soggettivo, ma più importante.
+          Ogni recensione contribuisce a un ranking globale, permettendo agli utenti di scoprire i kebabbari più apprezzati in base a dati concreti e non solo opinioni soggettive.
         </p>
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex items-start gap-3">
           <ShieldAlert className="text-blue-500 shrink-0 mt-0.5" size={20} />
           <p className="text-sm text-slate-500">
-            Questa applicazione è in continuo sviluppo. La matematica dietro le medie e il sistema di ranking globale sono progettati per garantire la massima oggettività possibile nelle valutazioni.
+            Questa applicazione è in continuo sviluppo. Il sistema di ranking globale sono progettati per garantire la massima oggettività possibile nelle valutazioni.
           </p>
         </div>
       </div>
@@ -46,7 +51,11 @@ export default function Info() {
           <div className="flex-1 space-y-4">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Ideazione e Codice</p>
-              <p className="font-black text-slate-800 text-lg">Marco Volpato</p>
+              <p className="font-black text-slate-800 text-lg">Gemini AI & Marco Volpato</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Beta tester</p>
+              <p className="font-black text-slate-800 text-lg">Luca Pistocchi e Gabriele Vitariello</p>
             </div>
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Supporto Bug & Errori</p>
@@ -75,10 +84,6 @@ export default function Info() {
             <Code size={20} /> In arrivo...
           </h3>
           <ul className="space-y-3 flex-1">
-            <li className="flex items-center gap-2 text-sm font-medium">
-              <div className="bg-white/20 p-1.5 rounded-md"><Camera size={16} /></div>
-              Galleria fotografica ufficiale
-            </li>
             <li className="flex items-center gap-2 text-sm font-medium">
               <div className="bg-white/20 p-1.5 rounded-md"><InfoIcon size={16} /></div>
               Sistema di Badges per i recensori
