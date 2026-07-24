@@ -131,7 +131,6 @@ export default function MyProfile() {
 
   const avgGiven = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1) : '0.0';
   
-  // Calcolo Percentuali Diete
   const vegCount = reviews.filter(r => r.is_vegetarian).length;
   const meatCount = reviews.length - vegCount;
   const vegPerc = reviews.length > 0 ? Math.round((vegCount / reviews.length) * 100) : 0;
@@ -164,16 +163,16 @@ export default function MyProfile() {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1">
+          {/* Aggiunti "flex flex-col items-center justify-center" per centrare perfettamente i contenuti */}
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
             <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
             <p className="text-xl font-black">{reviews.length}</p>
           </div>
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1">
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
             <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Media</p>
             <p className="text-xl font-black">🌯 {avgGiven}</p>
           </div>
-          {/* TERZO BLOCCO: STATISTICHE CARNE/VEG */}
-          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[100px] backdrop-blur-sm flex-1">
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[100px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
             <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Stile</p>
             <div className="flex justify-center gap-3 text-lg font-black mt-0.5">
               <span className="text-orange-200" title="Kebab di Carne">🥙 {meatPerc}%</span>
@@ -239,6 +238,14 @@ export default function MyProfile() {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-3">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
+              
+              {/* STAMPA COMMENTO SE PRESENTE */}
+              {rev.comment && (
+                <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${rev.is_vegetarian ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
+                  « {rev.comment} »
+                </div>
+              )}
+
               <div className="flex gap-2 mt-3">
                 <button onClick={() => navigate(`/edit/${rev.id}`)} className="flex-1 text-blue-600 hover:text-blue-800 p-2 rounded-md border border-blue-300 hover:bg-blue-50 text-sm font-bold">✏️ Modifica</button>
                 <button onClick={() => handleDeleteReview(rev.id)} className="text-red-600 hover:text-red-800 p-2 rounded-md" disabled={deletingId === rev.id}>

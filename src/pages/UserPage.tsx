@@ -4,101 +4,125 @@ import { supabase } from '../lib/supabase';
 import { ArrowLeft } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
-export default function UserPage() {
+export default function UserProfile() {
   const { username } = useParams();
   const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
-      // Trova l'utente nella tabella users usando il nickname
-      const { data: user } = await supabase
+      // Cerchiamo l'utente tramite il suo username
+      const { data: userData } = await supabase
         .from('users')
-        .select('secret_id')
+        .select('*')
         .eq('username', username)
         .maybeSingle();
 
-      if (!user) {
-        setReviews([]);
-        setLoading(false);
-        return;
+      if (userData) {
+        setUser(userData);
+        // Cerchiamo tutte le sue recensioni
+        const { data: revs } = await supabase
+          .from('reviews')
+          .select('*, restaurants(id, name, city)')
+          .eq('user_id', userData.secret_id)
+          .order('created_at', { ascending: false });
+
+        if (revs) setReviews(revs);
       }
-
-      // Scarica tutte le recensioni dell'utente usando user_id (più affidabile)
-      const { data } = await supabase
-        .from('reviews')
-        .select('*, restaurants(id, name, city)')
-        .eq('user_id', user.secret_id)
-        .order('created_at', { ascending: false });
-
-      if (data) setReviews(data);
       setLoading(false);
     };
     fetchUserData();
   }, [username]);
 
   if (loading) return <div className="py-10 text-center font-bold text-slate-500 animate-pulse">Caricamento profilo...</div>;
+  if (!user) return <div className="py-10 text-center font-bold text-red-500">Utente non trovato.</div>;
 
-  const avgGiven = reviews.length > 0 
-    ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1)
-    : '0.0';
+  // Calcoli Matematici
+  const avgGiven = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1) : '0.0';
+  
+  const vegCount = reviews.filter(r => r.is_vegetarian).length;
+  const meatCount = reviews.length - vegCount;
+  const vegPerc = reviews.length > 0 ? Math.round((vegCount / reviews.length) * 100) : 0;
+  const meatPerc = reviews.length > 0 ? Math.round((meatCount / reviews.length) * 100) : 0;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
+      
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm">
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* Intestazione Utente */}
+      {/* HEADER PROFILO (Copia esatta di MyProfile, senza i tasti sensibili) */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-xl shadow-md text-white flex flex-col md:flex-row justify-between md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <UserAvatar userId={reviews.length > 0 ? reviews[0].user_id : undefined} username={username} size="lg" className="border-4 border-white" />
+          <UserAvatar userId={user.secret_id} username={user.username} size="lg" className="w-20 h-20 shadow-lg" />
           <div>
-            <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Profilo Critico</h1>
-            <h2 className="text-3xl font-black">{username}</h2>
+            <h1 className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-1">Profilo Utente</h1>
+            <h2 className="text-3xl font-black">{user.username}</h2>
           </div>
         </div>
-        
-        <div className="flex gap-4">
-          <div className="bg-white/10 border border-white/20 p-4 rounded-xl text-center min-w-[100px] backdrop-blur-sm">
-            <p className="text-xs font-bold text-slate-300 uppercase mb-1">Voti Dati</p>
-            <p className="text-2xl font-black">{reviews.length}</p>
+
+        <div className="flex gap-3 flex-wrap">
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Recensioni</p>
+            <p className="text-xl font-black">{reviews.length}</p>
           </div>
-          <div className="bg-white/10 border border-white/20 p-4 rounded-xl text-center min-w-[100px] backdrop-blur-sm">
-            <p className="text-xs font-bold text-slate-300 uppercase mb-1">Media Data</p>
-            <p className="text-2xl font-black">🌯 {avgGiven}</p>
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[80px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Media</p>
+            <p className="text-xl font-black">🌯 {avgGiven}</p>
+          </div>
+          <div className="bg-white/10 border border-white/20 px-4 py-3 rounded-xl text-center min-w-[100px] backdrop-blur-sm flex-1 flex flex-col items-center justify-center">
+            <p className="text-[10px] font-bold text-slate-300 uppercase mb-1">Stile</p>
+            <div className="flex justify-center gap-3 text-lg font-black mt-0.5">
+              <span className="text-orange-200" title="Kebab di Carne">🥙 {meatPerc}%</span>
+              <span className="text-green-300" title="Falafel / Veg">🧆 {vegPerc}%</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Lista Recensioni dell'Utente */}
-      <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4">Storico Recensioni</h2>
+      {/* LISTA RECENSIONI PUBBLICHE */}
+      <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4">Recensioni di {user.username}</h2>
+      
       {reviews.length === 0 ? (
-        <p className="text-slate-500">Questo utente non ha ancora recensito nulla.</p>
+        <p className="text-slate-500 bg-white p-5 rounded-xl border border-slate-200 shadow-sm">Nessuna recensione scritta da questo utente.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reviews.map((rev) => (
-            <Link 
-              to={`/restaurant/${rev.restaurants.id}`} 
-              key={rev.id} 
-              className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:border-orange-300 hover:shadow-md transition-all group block"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{rev.restaurants.name}</h3>
-                  <p className="text-xs text-slate-500">{rev.restaurants.city}</p>
+        <div className="space-y-4">
+          {reviews.map((rev) => {
+            const isVeg = rev.is_vegetarian;
+            const cardBg = isVeg ? 'bg-[#f4f7f3] border-[#dce6d8]' : 'bg-white border-slate-200';
+            
+            return (
+              <div key={rev.id} className={`p-5 rounded-xl shadow-sm border ${cardBg}`}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="min-w-0 pr-4">
+                    <Link to={`/restaurant/${rev.restaurants.id}`} className="font-bold text-slate-800 hover:text-orange-600 transition-colors block text-lg truncate">
+                      {rev.restaurants.name}
+                    </Link>
+                    <p className="text-xs text-slate-500 truncate">{rev.restaurants.city}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800 border border-slate-200/60">
+                      {isVeg ? '🧆' : '🥙'} {rev.average_score}
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">
-                  🌯 {rev.average_score}
-                </div>
+                
+                <p className={`text-[10px] font-bold mt-3 ${isVeg ? 'text-[#6b8a61]' : 'text-slate-400'}`}>
+                  {new Date(rev.created_at).toLocaleDateString('it-IT')}
+                </p>
+                
+                {rev.comment && (
+                  <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${isVeg ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
+                    « {rev.comment} »
+                  </div>
+                )}
               </div>
-              <p className="text-[10px] text-slate-400 font-bold mt-3">
-                {new Date(rev.created_at).toLocaleDateString('it-IT')}
-              </p>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
