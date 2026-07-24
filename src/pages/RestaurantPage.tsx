@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate} from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { MapPin, ArrowLeft } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
@@ -47,13 +47,21 @@ export default function RestaurantPage() {
     ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1)
     : '0.0';
 
-  // Calcolo del Bounding Box per lo zoom della mappa (circa 500 metri dal punto centrale)
-  const offset = 0.003;
-  const minLng = (restaurant.lng - offset).toFixed(4);
-  const minLat = (restaurant.lat - offset).toFixed(4);
-  const maxLng = (restaurant.lng + offset).toFixed(4);
-  const maxLat = (restaurant.lat + offset).toFixed(4);
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${restaurant.lat},${restaurant.lng}`;
+  const lat = parseFloat(restaurant.lat);
+  const lng = parseFloat(restaurant.lng);
+  
+  let mapSrc = '';
+  if (!isNaN(lat) && !isNaN(lng)) {
+    const offset = 0.005;
+    const minLng = (lng - offset).toFixed(4);
+    const minLat = (lat - offset).toFixed(4);
+    const maxLng = (lng + offset).toFixed(4);
+    const maxLat = (lat + offset).toFixed(4);
+    
+    const bbox = `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
+    const marker = `${lat}%2C${lng}`;
+    mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marker}`;
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
@@ -61,37 +69,43 @@ export default function RestaurantPage() {
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* Intestazione Ristorante (Ora con Mappa di Sfondo) */}
-      <div className="relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row justify-between md:items-center min-h-[180px]">
+      {/* Intestazione Ristorante */}
+      <div className="relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row justify-between md:items-center min-h-[220px]">
         
         {/* Sfondo Decorativo Mappa */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          {/* Gradiente: bianco a sinistra e sfuma verso la mappa a destra. Su mobile parte dal basso. */}
-          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-white via-white/95 md:via-white/80 to-transparent z-10"></div>
+        <div className="absolute inset-0 z-0 pointer-events-none rounded-xl overflow-hidden">
           
-          <iframe 
-            src={mapSrc}
-            className="absolute right-0 top-0 w-full md:w-2/3 h-full object-cover opacity-60 grayscale-[30%] pointer-events-none"
-            frameBorder="0" 
-            scrolling="no" 
-            marginHeight={0} 
-            marginWidth={0}
-            title="Mappa Sfondo"
-          ></iframe>
+          {/* Wrapper Mappa (In basso su Mobile, a destra su PC) */}
+          <div className="absolute right-0 bottom-0 top-[40%] md:top-0 left-0 md:left-[30%] overflow-hidden">
+            
+            {/* Iframe ingrandito oltre i bordi per nascondere i tasti +/- e il logo */}
+            {mapSrc && (
+              <iframe 
+                src={mapSrc}
+                className="absolute -top-16 -bottom-16 -left-16 -right-16 w-[calc(100%+8rem)] h-[calc(100%+8rem)] opacity-50 grayscale-[30%] object-cover pointer-events-none"
+                frameBorder="0" 
+                scrolling="no" 
+                title="Mappa Sfondo"
+              ></iframe>
+            )}
+          </div>
+
+          {/* Gradiente: Su mobile scende dall'alto (bianco) verso il basso (trasparente). Su PC da sinistra a destra. */}
+          <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-white via-white/95 to-transparent md:via-white/90 z-10 pointer-events-none"></div>
         </div>
 
-        {/* Contenuto Testuale (Sinistra) - z-20 per stare sopra la mappa */}
+        {/* Contenuto Testuale */}
         <div className="relative z-20 p-6 md:p-8 flex-1">
           <h1 className="text-3xl font-black text-slate-800">{restaurant.name}</h1>
           <p className="text-slate-600 font-medium flex items-center gap-1 mt-2">
             <MapPin size={16} className="text-orange-600" /> {restaurant.city}, {restaurant.country}
           </p>
-          <div className="text-xs text-slate-400 mt-1 font-mono font-medium">Coordinate: {restaurant.lat.toFixed(4)}, {restaurant.lng.toFixed(4)}</div>
+          <div className="text-xs text-slate-400 mt-1 font-mono font-medium">Coordinate: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
         </div>
 
-        {/* Statistiche e Azioni (Destra) - z-20 per stare sopra la mappa */}
-        <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3">
-          <div className="bg-white/70 backdrop-blur-md border border-white/50 shadow-sm p-4 rounded-xl text-center min-w-[120px]">
+        {/* Statistiche e Azioni */}
+        <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0">
+          <div className="bg-white/80 backdrop-blur-md border border-slate-100 shadow-sm p-4 rounded-xl text-center min-w-[120px]">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Media</p>
             <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
             <p className="text-xs font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
@@ -127,7 +141,6 @@ export default function RestaurantPage() {
                 </div>
               </div>
               
-              {/* Dettaglio Voti */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                 <div className="bg-slate-50 p-2 rounded-lg text-center">
                   <p className="text-xs text-slate-500 font-bold uppercase">Location</p>
