@@ -17,7 +17,6 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Componente invisibile che gestisce il cambio di coordinate dinamico sulla mappa
 function MapController({ center, zoom }: { center: [number, number], zoom: number }) {
   const map = useMap();
   useEffect(() => {
@@ -33,7 +32,6 @@ export default function MapPage() {
   const [filteredRestaurants, setFilteredRestaurants] = useState<any[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Coordinate di default (Hinterland Milanese)
   const [mapCenter, setMapCenter] = useState<[number, number]>([45.51, 9.21]); 
   const [mapZoom, setMapZoom] = useState(11);
 
@@ -63,10 +61,9 @@ export default function MapPage() {
     }
   }, [searchTerm, restaurants]);
 
-  // Gestione del click su un risultato della ricerca
   const handleSelectRestaurant = (rest: any) => {
     setMapCenter([Number(rest.lat), Number(rest.lng)]);
-    setMapZoom(16); // Super zoom sul locale!
+    setMapZoom(16);
     setSearchTerm(rest.name);
     setIsDropdownOpen(false);
   };
@@ -74,7 +71,6 @@ export default function MapPage() {
   return (
     <div className="space-y-6 mb-20 md:mb-8 animate-fade-in relative h-[calc(100vh-160px)]">
       
-      {/* Barra di Ricerca Mappa (stile Autocomplete) */}
       <div className="absolute top-4 left-4 right-4 z-[1000] max-w-md mx-auto">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
@@ -90,7 +86,6 @@ export default function MapPage() {
             className="w-full text-lg p-4 pl-12 bg-white/95 backdrop-blur-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-lg"
           />
 
-          {/* Tendina dei risultati */}
           {isDropdownOpen && filteredRestaurants.length > 0 && (
             <div className="absolute top-full mt-2 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden">
               {filteredRestaurants.map(r => (
@@ -133,9 +128,11 @@ export default function MapPage() {
                   <p className="text-slate-600 flex items-center justify-center md:justify-start gap-1.5 text-sm !mt-1">
                     <MapPin size={14} className="text-orange-600"/> {restaurant.city}, {restaurant.country}
                   </p>
+                  
+                  {/* FIX: Aggiunto !text-white per forzare la sovrascrittura di Leaflet */}
                   <Link 
                     to={`/restaurant/${restaurant.id}`} 
-                    className="inline-block mt-3 bg-orange-400 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-orange-500 transition-colors shadow-sm w-full text-center"
+                    className="inline-block mt-3 bg-orange-400 !text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-orange-500 transition-colors shadow-sm w-full text-center"
                   >
                     Vedi Recensioni
                   </Link>
