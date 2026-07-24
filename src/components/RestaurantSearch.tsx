@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Loader2 } from 'lucide-react';
+import { Search, MapPin, Loader2, PlusCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface RestaurantSearchProps {
@@ -19,17 +19,21 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
 
   const handleSearch = async (e?: React.FormEvent | React.KeyboardEvent) => {
     if (e) e.preventDefault();
-    if (!query.trim()) return;
+    
+    // Rimuoviamo gli spazi vuoti iniziali/finali per evitare fallimenti di ricerca
+    const cleanQuery = query.trim();
+    if (!cleanQuery) return;
 
     setLoading(true);
     setError('');
 
     try {
-      // 1) Cerca nei ristoranti custom già salvati nel DB (case-insensitive, partial match)
+      // 1) Cerca nei ristoranti custom già salvati nel DB 
+      // NOTA: .ilike() di Supabase rende già la ricerca CASE-INSENSITIVE
       const { data: localMatches } = await supabase
         .from('restaurants')
         .select('id,name,city,country,lat,lng')
-        .ilike('name', `%${query}%`)
+        .ilike('name', `%${cleanQuery}%`)
         .limit(10);
 
       const mappedLocal = (localMatches || []).map((r: any) => ({
@@ -42,7 +46,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
       // 2) Chiamata API gratuita a Photon (OpenStreetMap) con limite più ampio
       let remoteResults: any[] = [];
       try {
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=10`);
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=10`);
         const data = await res.json();
         remoteResults = data.features || [];
       } catch (err) {
@@ -65,8 +69,9 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
 
       setResults(final);
 
-      // Se non troviamo nulla, apri possibilità di aggiunta manuale
+      // Se non troviamo nulla, apri possibilità di aggiunta manuale in automatico
       if (final.length === 0) setManualOpen(true);
+      else setManualOpen(false); // Nasconde il form se era aperto e facciamo una nuova ricerca fruttuosa
 
     } catch (error) {
       console.error('Errore di ricerca:', error);
@@ -77,7 +82,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   };
 
   const handleSelect = (place: any) => {
-    // Estrapoliamo i dati dal risultato della mappa o dal DB
     const name = place.properties?.name || 'Locale Senza Nome';
     const city = place.properties?.city || place.properties?.town || place.properties?.village || 'Città non specificata';
     const country = place.properties?.country || 'Nazione non specificata';
@@ -99,7 +103,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     if (isNaN(lat) || isNaN(lng)) { setError('Coordinate non valide. Usa valori numerici per lat e lng.'); return; }
 
     try {
-      // Inseriamo il ristorante nel DB e lo selezioniamo
       const { data: newRest, error: insertErr } = await supabase
         .from('restaurants')
         .insert({ name: manual.name, city: manual.city || '', country: manual.country || '', lat, lng })
@@ -108,7 +111,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
 
       if (insertErr) throw insertErr;
 
-      // Costruiamo un oggetto simile al risultato map e selezioniamo
       const obj = {
         source: 'local',
         id: newRest.id,
@@ -149,7 +151,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
         </button>
       </div>
 
-      {/* RISOLUZIONE ERRORE TS6133: Mostriamo l'errore in UI se presente */}
       {error && (
         <div className="mb-4 flex items-center gap-2 text-red-800 bg-red-50 p-3 rounded-lg text-sm font-medium border border-red-200">
           <span>⚠️</span> {error}
@@ -179,6 +180,17 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
               </div>
             </li>
           ))}
+          
+          {/* NUOVO: Opzione manuale sempre presente a fine lista */}
+          {!manualOpen && (
+            <li
+              onClick={() => setManualOpen(true)}
+              className="p-4 bg-slate-50 hover:bg-orange-50 cursor-pointer transition-colors text-sm flex items-center justify-center gap-2 text-orange-600 font-bold border-t border-slate-200 group"
+            >
+              <PlusCircle size={18} className="group-hover:scale-110 transition-transform" /> 
+              Non trovi il locale? Aggiungilo manualmente
+            </li>
+          )}
         </ul>
       )}
 
@@ -194,8 +206,8 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
             <input placeholder="Longitudine" value={manual.lng} onChange={(e)=>setManual({...manual, lng: e.target.value})} className="p-2 border rounded" />
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={handleManualSubmit} className="bg-orange-600 text-white px-4 py-2 rounded">Aggiungi e Seleziona</button>
-            <button onClick={() => setManualOpen(false)} className="px-4 py-2 rounded border">Annulla</button>
+            <button onClick={handleManualSubmit} className="bg-orange-600 text-white px-4 py-2 rounded font-bold hover:bg-orange-700 transition-colors">Aggiungi e Seleziona</button>
+            <button onClick={() => setManualOpen(false)} className="px-4 py-2 rounded border font-bold text-slate-600 hover:bg-slate-100 transition-colors">Annulla</button>
           </div>
         </div>
       )}
