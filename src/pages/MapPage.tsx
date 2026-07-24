@@ -129,10 +129,10 @@ export default function MapPage() {
                     <MapPin size={14} className="text-orange-600"/> {restaurant.city}, {restaurant.country}
                   </p>
                   
-                  {/* FIX: Aggiunto !text-white per forzare la sovrascrittura di Leaflet */}
+                  {/* Aggiornato a bg-orange-600 e hover:bg-orange-700 */}
                   <Link 
                     to={`/restaurant/${restaurant.id}`} 
-                    className="inline-block mt-3 bg-orange-400 !text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-orange-500 transition-colors shadow-sm w-full text-center"
+                    className="inline-block mt-3 bg-orange-600 !text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors shadow-sm w-full text-center"
                   >
                     Vedi Recensioni
                   </Link>

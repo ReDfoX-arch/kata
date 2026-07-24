@@ -51,7 +51,7 @@ export default function Info() {
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex items-start gap-3">
           <ShieldAlert className="text-blue-500 shrink-0 mt-0.5" size={20} />
           <p className="text-sm text-slate-500">
-            Questa applicazione è in continuo sviluppo. Il sistema di ranking globale sono progettati per garantire la massima oggettività possibile nelle valutazioni.
+            Questa applicazione è in continuo sviluppo. Il sistema di ranking globale è progettato per garantire la massima oggettività possibile nelle valutazioni.
           </p>
         </div>
       </div>
@@ -101,10 +101,6 @@ export default function Info() {
             <li className="flex items-center gap-2 text-sm font-medium">
               <div className="bg-white/20 p-1.5 rounded-md"><InfoIcon size={16} /></div>
               Sistema di Badges per i recensori
-            </li>
-            <li className="flex items-center gap-2 text-sm font-medium">
-              <div className="bg-white/20 p-1.5 rounded-md"><Heart size={16} /></div>
-              Salvataggio dei kebab preferiti
             </li>
           </ul>
           <p className="text-xs text-orange-200 mt-4 font-bold">Stay tuned.</p>
