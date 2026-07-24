@@ -25,7 +25,6 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
 
     try {
       if (mode === 'new') {
-        // 1. Controlla se il nome è già stato preso
         const { data: existingUser } = await supabase
           .from('users')
           .select('username')
@@ -38,7 +37,6 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           return;
         }
 
-        // 2. Se è libero, creiamo l'account e l'ID Segreto
         const newSecretId = crypto.randomUUID();
         const { error: insertError } = await supabase
           .from('users')
@@ -46,28 +44,30 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
             username: upperUsername,
             pin_code: pin,
             secret_id: newSecretId
+            // Nuovi utenti creati sono sempre is_admin: false di default
           });
 
         if (insertError) throw insertError;
 
-        // 3. Salviamo nel telefono
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
           userId: newSecretId,
-          avatar: null
+          avatar: null,
+          isAdmin: false
         }));
         onComplete();
 
       } else {
-        // --- MODALITÀ ACCESSO (LOGIN DA ALTRO DISPOSITIVO) ---
+        // --- MODALITÀ ACCESSO ---
+        // Ora chiediamo al DB anche lo stato di is_admin
         const { data: user, error: loginError } = await supabase
           .from('users')
-          .select('secret_id, avatar')
+          .select('secret_id, avatar, is_admin')
           .eq('username', upperUsername)
           .eq('pin_code', pin)
           .maybeSingle();
 
-        if (loginError) throw loginError;
+        if (loginError && loginError.code !== '42703') throw loginError;
 
         if (!user) {
           setError("❌ Nome o PIN errati. Riprova.");
@@ -75,11 +75,12 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
           return;
         }
 
-        // Se corretto, scarichiamo l'ID segreto e lo salviamo nel nuovo dispositivo
+        // Salviamo lo status di Admin nel telefono
         localStorage.setItem('kata_profile', JSON.stringify({
           username: upperUsername,
           userId: user.secret_id,
-          avatar: user.avatar || null
+          avatar: user.avatar || null,
+          isAdmin: user.is_admin === true // Booleano sicuro
         }));
         onComplete();
       }
@@ -129,11 +130,6 @@ export default function ProfileSetup({ onComplete }: { onComplete: () => void })
               onChange={(e) => setName(e.target.value)}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase font-bold"
             />
-            {mode === 'new' && (
-              <p className="text-sm text-slate-500 mt-2">
-                Il nickname che scegli è <strong>definitivo</strong> e non potrà essere cambiato in seguito.
-              </p>
-            )}
           </div>
 
           <div>
