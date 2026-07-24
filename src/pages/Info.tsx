@@ -53,8 +53,14 @@ export default function Info() {
               <p className="text-sm text-slate-600 mb-2">
                 Hai trovato un bug, la mappa non carica o hai un'idea geniale per una nuova feature? Scrivimi.
               </p>
+              
+              {/* MODIFICA QUI LA TUA MAIL */}
+              <p className="font-mono text-sm text-slate-800 font-bold mb-3 select-all">
+                mvolpato76@gmail.com
+              </p>
+
               <a 
-                href="mailto:tuamail@esempio.com?subject=Segnalazione%20Bug%20KATA" 
+                href="mailto:mvolpato76@gmail.com?subject=Segnalazione%20Bug%20KATA" 
                 className="inline-flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors"
               >
                 <Mail size={16} /> Contatta lo sviluppatore

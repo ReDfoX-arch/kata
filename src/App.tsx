@@ -42,9 +42,11 @@ function App() {
         {/* Header Desktop */}
         <header className="bg-white shadow-sm hidden md:block sticky top-0 z-50">
           <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+            {/* Aggiunto shrink-0 per evitare che il logo venga schiacciato */}
+            <Link to="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity shrink-0">
               <img src="/pwa-192x192.png" alt="KATA Logo" className="w-14 h-14 rounded-lg shadow-sm" />
-              <div className="flex flex-col justify-center">
+              {/* Aggiunto whitespace-nowrap per impedire l'andata a capo */}
+              <div className="flex flex-col justify-center whitespace-nowrap">
                 <h1 className="font-extrabold text-3xl tracking-tight text-orange-600 leading-none">
                   KATA
                 </h1>
@@ -53,17 +55,19 @@ function App() {
                 </span>
               </div>
             </Link>
-            <nav className="flex items-center gap-8">
+            
+            {/* Ridotto gap da 8 a 5 per fare spazio al nuovo pulsante Info */}
+            <nav className="flex items-center gap-5">
               <Link to="/" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><HomeIcon size={20} /> Home</Link>
               <Link to="/map" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><MapIcon size={20} /> Mappa</Link>
               <Link to="/rankings" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><Trophy size={20} /> Classifica</Link>
               <Link to="/stats" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><BarChart2 size={20} /> Statistiche</Link>
               <Link to="/me" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><UserIcon size={20} /> Profilo</Link>
+              <Link to="/info" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><InfoIcon size={20} /> Info</Link>
               
-              <Link to="/add" className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm">
+              <Link to="/add" className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors flex items-center gap-2 shadow-sm shrink-0">
                 <PlusCircle size={18} /> Nuova
               </Link>
-              <Link to="/info" className="flex items-center gap-2 hover:text-orange-600 font-medium transition-colors"><InfoIcon size={20} /> Info</Link>
             </nav>
           </div>
         </header>
