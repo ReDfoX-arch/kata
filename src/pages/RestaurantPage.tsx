@@ -1,34 +1,27 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { MapPin, ArrowLeft } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 export default function RestaurantPage() {
-  const { id } = useParams(); // Prende l'ID dall'URL
+  const { id } = useParams();
   const navigate = useNavigate();
   const [restaurant, setRestaurant] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [bannerImage, setBannerImage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRestaurantData = async () => {
       setLoading(true);
-      // Scarica dati ristorante
       const { data: restData } = await supabase.from('restaurants').select('*').eq('id', id).single();
-      // Scarica recensioni per questo ristorante
       const { data: revsData } = await supabase.from('reviews').select('*').eq('restaurant_id', id).order('created_at', { ascending: false });
 
       if (restData) {
         setRestaurant(restData);
-        // Genera URL per hero banner usando OpenStreetMap static map
-        const mapImageUrl = `https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=300&center=lonlat:${restData.lng},${restData.lat}&zoom=15`;
-        setBannerImage(mapImageUrl);
       }
 
       if (revsData) {
-        // Otteniamo gli user_id presenti e cerchiamo i nickname correnti nella tabella users
         const userIds = Array.from(new Set(revsData.map((r: any) => r.user_id).filter(Boolean)));
         let usersMap: Record<string, string> = {};
         if (userIds.length > 0) {
@@ -38,7 +31,6 @@ export default function RestaurantPage() {
           }
         }
 
-        // Mappiamo le recensioni per usare il nickname corrente (fallback a rev.username)
         const mapped = revsData.map((r: any) => ({ ...r, display_username: usersMap[r.user_id] || r.username }));
         setReviews(mapped);
       }
@@ -55,46 +47,61 @@ export default function RestaurantPage() {
     ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1)
     : '0.0';
 
+  // Calcolo del Bounding Box per lo zoom della mappa (circa 500 metri dal punto centrale)
+  const offset = 0.003;
+  const minLng = (restaurant.lng - offset).toFixed(4);
+  const minLat = (restaurant.lat - offset).toFixed(4);
+  const maxLng = (restaurant.lng + offset).toFixed(4);
+  const maxLat = (restaurant.lat + offset).toFixed(4);
+  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${minLng},${minLat},${maxLng},${maxLat}&layer=mapnik&marker=${restaurant.lat},${restaurant.lng}`;
+
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm">
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* Hero Banner */}
-      {bannerImage && (
-        <div className="relative h-64 rounded-xl overflow-hidden shadow-lg">
-          <img 
-            src={bannerImage} 
-            alt={restaurant.name}
-            className="w-full h-full object-cover"
-            onError={() => setBannerImage(null)}
-          />
-          <div className="absolute inset-0 bg-black/30"></div>
+      {/* Intestazione Ristorante (Ora con Mappa di Sfondo) */}
+      <div className="relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row justify-between md:items-center min-h-[180px]">
+        
+        {/* Sfondo Decorativo Mappa */}
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          {/* Gradiente: bianco a sinistra e sfuma verso la mappa a destra. Su mobile parte dal basso. */}
+          <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-white via-white/95 md:via-white/80 to-transparent z-10"></div>
+          
+          <iframe 
+            src={mapSrc}
+            className="absolute right-0 top-0 w-full md:w-2/3 h-full object-cover opacity-60 grayscale-[30%] pointer-events-none"
+            frameBorder="0" 
+            scrolling="no" 
+            marginHeight={0} 
+            marginWidth={0}
+            title="Mappa Sfondo"
+          ></iframe>
         </div>
-      )}
 
-      {/* Intestazione Ristorante */}
-      <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between md:items-center gap-6">
-        <div>
+        {/* Contenuto Testuale (Sinistra) - z-20 per stare sopra la mappa */}
+        <div className="relative z-20 p-6 md:p-8 flex-1">
           <h1 className="text-3xl font-black text-slate-800">{restaurant.name}</h1>
-          <p className="text-slate-500 flex items-center gap-1 mt-2">
-            <MapPin size={16} /> {restaurant.city}, {restaurant.country}
+          <p className="text-slate-600 font-medium flex items-center gap-1 mt-2">
+            <MapPin size={16} className="text-orange-600" /> {restaurant.city}, {restaurant.country}
           </p>
-          <div className="text-xs text-slate-400 mt-1 font-mono">Coordinate: {restaurant.lat.toFixed(4)}, {restaurant.lng.toFixed(4)}</div>
+          <div className="text-xs text-slate-400 mt-1 font-mono font-medium">Coordinate: {restaurant.lat.toFixed(4)}, {restaurant.lng.toFixed(4)}</div>
         </div>
-        <div className="flex flex-col items-end gap-3">
-          <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl text-center min-w-[120px]">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Media</p>
+
+        {/* Statistiche e Azioni (Destra) - z-20 per stare sopra la mappa */}
+        <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3">
+          <div className="bg-white/70 backdrop-blur-md border border-white/50 shadow-sm p-4 rounded-xl text-center min-w-[120px]">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Media</p>
             <p className="text-4xl font-black text-slate-800">🌯 {avgScore}</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">{reviews.length} recensioni</p>
+            <p className="text-xs font-bold text-slate-600 mt-1">{reviews.length} recensioni</p>
           </div>
 
           <button
             onClick={() => navigate('/add', { state: { restaurant } })}
-            className="bg-orange-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-700 transition-colors"
+            className="bg-orange-600 text-white px-4 py-2 flex-1 md:flex-none w-full text-center rounded-lg font-bold hover:bg-orange-700 transition-colors shadow-md hover:shadow-lg"
           >
-            Scrivi recensione per questo locale
+            Scrivi recensione
           </button>
         </div>
       </div>
