@@ -24,8 +24,9 @@ export default function AddReview() {
   const [comment, setComment] = useState('');
   const [isVegetarian, setIsVegetarian] = useState(false);
   
-  // NUOVO STATO: Orario di chiusura
+  // STATI: Orario di chiusura
   const [closingTime, setClosingTime] = useState('');
+  const [originalClosingTime, setOriginalClosingTime] = useState('NA'); // Salva l'orario attuale del DB
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
@@ -38,7 +39,9 @@ export default function AddReview() {
         const r = (location as any).state.restaurant;
         if (r) {
           setRestaurant({ name: r.name, city: r.city || '', country: r.country || '', lat: Number(r.lat), lng: Number(r.lng) });
-          setClosingTime(r.closing_time && r.closing_time !== 'NA' ? r.closing_time : '');
+          const ct = r.closing_time || 'NA';
+          setOriginalClosingTime(ct);
+          setClosingTime(ct !== 'NA' ? ct : '');
         }
       }
     } catch (e) {
@@ -57,11 +60,9 @@ export default function AddReview() {
           .eq('lat', restaurant.lat)
           .maybeSingle();
         
-        if (data && data.closing_time && data.closing_time !== 'NA') {
-          setClosingTime(data.closing_time);
-        } else {
-          setClosingTime('');
-        }
+        const ct = data?.closing_time || 'NA';
+        setOriginalClosingTime(ct);
+        setClosingTime(ct !== 'NA' ? ct : '');
       };
       fetchRestInfo();
     }
@@ -109,7 +110,9 @@ export default function AddReview() {
         setIsVegetarian(review.is_vegetarian || false);
         
         // Imposta orario chiusura esistente
-        setClosingTime(review.restaurants.closing_time && review.restaurants.closing_time !== 'NA' ? review.restaurants.closing_time : '');
+        const ct = review.restaurants.closing_time || 'NA';
+        setOriginalClosingTime(ct);
+        setClosingTime(ct !== 'NA' ? ct : '');
         
         setLoading(false);
       } catch (err: any) {
@@ -167,7 +170,14 @@ export default function AddReview() {
       const upperUsername = profile.username;
       let restaurantId = null;
       
-      const finalClosingTime = closingTime.trim() || 'NA';
+      // Logica intelligente: se lasci vuoto ma c'era già un orario, mantieni quello vecchio. 
+      // Altrimenti salva il nuovo (o NA se è tutto vuoto).
+      let finalClosingTime = 'NA';
+      if (closingTime.trim() !== '') {
+        finalClosingTime = closingTime.trim();
+      } else if (originalClosingTime !== 'NA') {
+        finalClosingTime = originalClosingTime;
+      }
 
       const { data: existingRest, error: searchRestError } = await supabase
         .from('restaurants')
@@ -194,7 +204,7 @@ export default function AddReview() {
             country: restaurant.country,
             lat: restaurant.lat,
             lng: restaurant.lng,
-            closing_time: finalClosingTime // INSERIMENTO NUOVO ORARIO
+            closing_time: finalClosingTime
           })
           .select('id')
           .single();
@@ -298,11 +308,21 @@ export default function AddReview() {
 
         <div className="pt-4 pb-2 border-t border-slate-100 space-y-6">
           
-          {/* NUOVO CAMPO: Orario di Chiusura */}
+          {/* CAMPO: Orario di Chiusura */}
           <div>
-            <label className="flex items-center gap-2 font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
-              <Clock size={16} className="text-orange-500" /> Orario di Chiusura
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="flex items-center gap-2 font-bold text-slate-700 uppercase tracking-wide text-sm">
+                <Clock size={16} className="text-orange-500" /> Orario di Chiusura
+              </label>
+              
+              {/* BADGE: Mostra l'orario attualmente salvato per questo ristorante */}
+              {restaurant && (
+                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                  Attuale: <span className="text-slate-700">{originalClosingTime}</span>
+                </span>
+              )}
+            </div>
+            
             <input 
               type="text" 
               placeholder="Es. 23:00, 02:00, Aperto 24h (lascia vuoto se non lo sai)" 
