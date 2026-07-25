@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X, Heart } from 'lucide-react';
+import { MapPin, ArrowLeft, Camera, ImagePlus, Loader2, Trash2, X, Heart, Clock } from 'lucide-react';
 import UserAvatar from '../components/UserAvatar';
 
 export default function RestaurantPage() {
@@ -122,8 +122,6 @@ export default function RestaurantPage() {
   const handleDeleteReview = async (reviewId: string) => {
     if (!confirm('Sei sicuro di voler eliminare questa recensione?')) return;
     try {
-      // Passiamo l'user_id dell'admin nella query affinché PostgreSQL 
-      // applichi correttamente la RLS Policy che abbiamo creato.
       const { error } = await supabase.from('reviews').delete().eq('id', reviewId).eq('user_id', profile.userId);
       
       if (error) {
@@ -183,7 +181,6 @@ export default function RestaurantPage() {
         <ArrowLeft size={16} /> Torna indietro
       </button>
 
-      {/* Intestazione Ristorante */}
       <div className="relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col md:flex-row justify-between md:items-center min-h-[220px]">
         <div className="absolute inset-0 z-0 pointer-events-none rounded-xl overflow-hidden">
           <div className="absolute right-0 bottom-0 top-[40%] md:top-0 left-0 md:left-[30%] overflow-hidden">
@@ -196,10 +193,18 @@ export default function RestaurantPage() {
 
         <div className="relative z-20 p-6 md:p-8 flex-1">
           <h1 className="text-3xl font-black text-slate-800">{restaurant.name}</h1>
-          <p className="text-slate-600 font-medium flex items-center gap-1 mt-2">
-            <MapPin size={16} className="text-orange-600" /> {restaurant.city}, {restaurant.country}
-          </p>
-          <div className="text-xs text-slate-400 mt-1 font-mono font-medium">Coordinate: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
+          
+          <div className="flex flex-col gap-1 mt-2">
+            <p className="text-slate-600 font-medium flex items-center gap-1">
+              <MapPin size={16} className="text-orange-600" /> {restaurant.city}, {restaurant.country}
+            </p>
+            {/* NUOVO: Informazione Orario Chiusura */}
+            <p className="text-slate-600 font-medium flex items-center gap-1">
+              <Clock size={16} className="text-blue-500" /> Chiusura: <span className="font-bold">{restaurant.closing_time || 'NA'}</span>
+            </p>
+          </div>
+
+          <div className="text-xs text-slate-400 mt-2 font-mono font-medium">Coordinate: {lat.toFixed(4)}, {lng.toFixed(4)}</div>
         </div>
 
         <div className="relative z-20 p-6 md:p-8 pt-0 md:pt-8 flex flex-col items-start md:items-end gap-3 mt-auto md:mt-0 w-full md:w-auto">
@@ -243,14 +248,12 @@ export default function RestaurantPage() {
         </div>
       </div>
 
-      {/* Galleria Fotografica */}
       <div className="mt-8 mb-4">
         <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
           <Camera size={24} className="text-slate-500" /> Foto del Locale
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {photos.map(photo => {
-            // Sbloccati i poteri da Admin per la cancellazione foto
             const canDelete = isAdmin || (profile && photo.user_id === profile.userId);
             return (
               <div key={photo.id} className="relative aspect-square rounded-xl overflow-hidden shadow-sm border border-slate-200 group bg-slate-100 cursor-pointer" onClick={() => setZoomedPhoto(photo.url)}>
@@ -277,14 +280,12 @@ export default function RestaurantPage() {
         </div>
       </div>
 
-      {/* Lista Recensioni */}
       <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4">Tutte le recensioni</h2>
       {reviews.length === 0 ? (
         <p className="text-slate-500">Nessuna recensione ancora presente.</p>
       ) : (
         <div className="space-y-4">
           {reviews.map((rev) => {
-            // Sbloccati i poteri da Admin per la cancellazione recensioni
             const canDeleteReview = isAdmin || (profile && profile.userId === rev.user_id);
             const isVeg = rev.is_vegetarian;
             const cardBg = isVeg ? 'bg-[#f4f7f3] border-[#dce6d8]' : 'bg-white border-slate-200';
@@ -295,7 +296,6 @@ export default function RestaurantPage() {
             return (
               <div key={rev.id} className={`p-5 rounded-xl shadow-sm border ${cardBg}`}>
                 <div className={`flex justify-between items-start border-b pb-3 mb-3 ${isVeg ? 'border-[#dce6d8]' : 'border-slate-100'}`}>
-                  {/* AGGIUNTO IL LINK AL PROFILO UTENTE */}
                   <Link to={`/user/${(rev.display_username || rev.username)}`} className="flex items-center gap-2 group cursor-pointer flex-1">
                     <UserAvatar userId={rev.user_id} username={rev.display_username} size="md" />
                     <div>

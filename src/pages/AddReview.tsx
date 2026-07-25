@@ -3,7 +3,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import ScoreGroup from '../components/ScoreGroup';
 import RestaurantSearch from '../components/RestaurantSearch';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Clock } from 'lucide-react';
 
 export default function AddReview() {
   const navigate = useNavigate();
@@ -21,20 +21,24 @@ export default function AddReview() {
     menu: 0
   });
   
-  // NUOVI STATI: Commento e Opzione Vegetariana
   const [comment, setComment] = useState('');
   const [isVegetarian, setIsVegetarian] = useState(false);
+  
+  // NUOVO STATO: Orario di chiusura
+  const [closingTime, setClosingTime] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [error, setError] = useState('');
 
+  // 1. Precompilazione da navigazione
   useEffect(() => {
     try {
       if (!isEditMode && (location as any)?.state?.restaurant) {
         const r = (location as any).state.restaurant;
         if (r) {
           setRestaurant({ name: r.name, city: r.city || '', country: r.country || '', lat: Number(r.lat), lng: Number(r.lng) });
+          setClosingTime(r.closing_time && r.closing_time !== 'NA' ? r.closing_time : '');
         }
       }
     } catch (e) {
@@ -42,6 +46,28 @@ export default function AddReview() {
     }
   }, [isEditMode, location]);
 
+  // 2. Fetch dell'orario di chiusura se l'utente seleziona un locale dal componente di ricerca
+  useEffect(() => {
+    if (restaurant && !isEditMode && !(location as any)?.state?.restaurant) {
+      const fetchRestInfo = async () => {
+        const { data } = await supabase
+          .from('restaurants')
+          .select('closing_time')
+          .eq('name', restaurant.name)
+          .eq('lat', restaurant.lat)
+          .maybeSingle();
+        
+        if (data && data.closing_time && data.closing_time !== 'NA') {
+          setClosingTime(data.closing_time);
+        } else {
+          setClosingTime('');
+        }
+      };
+      fetchRestInfo();
+    }
+  }, [restaurant?.name, restaurant?.lat, isEditMode, location]);
+
+  // 3. Precompilazione da modalità Edit (Modifica recensione esistente)
   useEffect(() => {
     if (!isEditMode) return;
     
@@ -79,9 +105,11 @@ export default function AddReview() {
           bill: review.score_bill,
           menu: review.score_menu
         });
-        // Popola i nuovi campi
         setComment(review.comment || '');
         setIsVegetarian(review.is_vegetarian || false);
+        
+        // Imposta orario chiusura esistente
+        setClosingTime(review.restaurants.closing_time && review.restaurants.closing_time !== 'NA' ? review.restaurants.closing_time : '');
         
         setLoading(false);
       } catch (err: any) {
@@ -138,6 +166,8 @@ export default function AddReview() {
 
       const upperUsername = profile.username;
       let restaurantId = null;
+      
+      const finalClosingTime = closingTime.trim() || 'NA';
 
       const { data: existingRest, error: searchRestError } = await supabase
         .from('restaurants')
@@ -150,6 +180,11 @@ export default function AddReview() {
 
       if (existingRest) {
         restaurantId = existingRest.id;
+        // AGGIORNAMENTO ORARIO DI CHIUSURA (anche per locali esistenti)
+        await supabase
+          .from('restaurants')
+          .update({ closing_time: finalClosingTime })
+          .eq('id', restaurantId);
       } else {
         const { data: newRest, error: insertRestError } = await supabase
           .from('restaurants')
@@ -158,7 +193,8 @@ export default function AddReview() {
             city: restaurant.city,
             country: restaurant.country,
             lat: restaurant.lat,
-            lng: restaurant.lng
+            lng: restaurant.lng,
+            closing_time: finalClosingTime // INSERIMENTO NUOVO ORARIO
           })
           .select('id')
           .single();
@@ -186,8 +222,8 @@ export default function AddReview() {
         score_bill: scores.bill,
         score_menu: scores.menu,
         created_at: dateToSave,
-        comment: comment.trim() || null, // Salva il commento
-        is_vegetarian: isVegetarian      // Salva il flag veg
+        comment: comment.trim() || null,
+        is_vegetarian: isVegetarian
       };
 
       if (isEditMode) {
@@ -208,7 +244,7 @@ export default function AddReview() {
         alert('✅ Recensione salvata con successo!');
       }
 
-      navigate('/');
+      navigate(`/restaurant/${restaurantId}`);
 
     } catch (error: any) {
       console.error("Errore durante il salvataggio:", error);
@@ -260,9 +296,23 @@ export default function AddReview() {
           <RestaurantSearch onSelect={setRestaurant} />
         </div>
 
-        {/* NUOVA SEZIONE: Dettagli Extra (Vegetariano e Commento) */}
         <div className="pt-4 pb-2 border-t border-slate-100 space-y-6">
-          {/* Toggle Vegetariano */}
+          
+          {/* NUOVO CAMPO: Orario di Chiusura */}
+          <div>
+            <label className="flex items-center gap-2 font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
+              <Clock size={16} className="text-orange-500" /> Orario di Chiusura
+            </label>
+            <input 
+              type="text" 
+              placeholder="Es. 23:00, 02:00, Aperto 24h (lascia vuoto se non lo sai)" 
+              value={closingTime} 
+              onChange={(e) => setClosingTime(e.target.value)} 
+              className="w-full text-base p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all" 
+            />
+            <p className="text-xs text-slate-500 mt-2">Aiuta gli altri: a che ora chiude questo locale? Se lo inserisci, modificherai la pagina pubblica del ristorante.</p>
+          </div>
+
           <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${isVegetarian ? 'bg-[#f4f7f3] border-[#d5e0d3]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
             <input 
               type="checkbox" 
@@ -278,7 +328,6 @@ export default function AddReview() {
             </div>
           </label>
 
-          {/* Area Commento */}
           <div>
             <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
               Nota / Commento (Opzionale)
