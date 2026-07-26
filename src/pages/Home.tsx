@@ -9,18 +9,19 @@ export default function Home() {
   const [topRestaurants, setTopRestaurants] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estraiamo il profilo e controlliamo se l'utente è Admin
   const myProfile = JSON.parse(localStorage.getItem('kata_profile') || '{}');
+  const isAdmin = myProfile?.isAdmin === true;
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Scarichiamo tutti i ristoranti e tutte le recensioni
       const { data: rests } = await supabase.from('restaurants').select('*');
       const { data: revs } = await supabase.from('reviews').select('*, restaurants(id, name, city, country, lat, lng)').order('created_at', { ascending: false });
 
       if (!rests || !revs) return;
 
-      // 2. Calcoliamo la media per ogni ristorante
       const stats = rests.map(r => {
         const rRevs = revs.filter(rev => rev.restaurant_id === r.id);
         const avg = rRevs.length > 0 
@@ -33,7 +34,6 @@ export default function Home() {
 
       setTopRestaurants(stats.slice(0, 3));
 
-      // Prendiamo le ultime 10 recensioni e risolviamo i dati mancanti
       const recent = revs.slice(0, 10);
       const userIds = Array.from(new Set(recent.map(r => r.user_id).filter(Boolean)));
       let usersMap: Record<string, any> = {};
@@ -42,11 +42,9 @@ export default function Home() {
         if (users) usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: { username: u.username } }), {});
       }
       
-      // Mappiamo le recensioni - se il join con restaurants fallisce, ricarichiamo il ristorante
       const mappedRecent = await Promise.all(recent.map(async (r: any) => {
         let restaurant = r.restaurants;
         
-        // Se il join fallì, ricarichiamo il ristorante direttamente
         if (!restaurant || !restaurant.id) {
           const { data: rest } = await supabase
             .from('restaurants')
@@ -76,17 +74,17 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // Funzione per eliminare una recensione
   const handleDelete = async (id: string) => {
     const confirmDelete = window.confirm("Sei sicuro di voler eliminare questa recensione? L'azione è irreversibile.");
     if (!confirmDelete) return;
 
     try {
+      // Rimosso il blocco eq('user_id', profile.userId) così l'Admin può cancellare tutto!
       const { error } = await supabase.from('reviews').delete().eq('id', id);
       if (error) throw error;
       
       alert("Recensione eliminata!");
-      fetchData(); // Ricarichiamo i dati per aggiornare la classifica
+      fetchData(); 
     } catch (error) {
       console.error("Errore durante l'eliminazione:", error);
       alert("Impossibile eliminare la recensione.");
@@ -99,7 +97,6 @@ export default function Home() {
 
   return (
     <div className="space-y-8 animate-fade-in mb-24 md:mb-8">
-      {/* Sezione TOP 3 */}
       <section>
         <h2 className="text-2xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
           <Trophy className="text-yellow-500" /> I Migliori 3 Kebab
@@ -127,7 +124,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sezione Ultime Recensioni & Eliminazione */}
       <section>
         <h2 className="text-2xl font-extrabold text-slate-800 mb-4 flex items-center gap-2">
           <Star className="text-orange-500" /> Ultime Recensioni
@@ -162,11 +158,12 @@ export default function Home() {
                     🌯 {rev.average_score}
                   </div>
 
-                  {rev.user_id === myProfile.userId && (
+                  {/* Mostriamo il bottone elimina se l'utente è l'autore OPPURE se è Admin */}
+                  {(rev.user_id === myProfile.userId || isAdmin) && (
                     <button 
                     onClick={() => handleDelete(rev.id)}
                       className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors flex items-center gap-1"
-                      title="Elimina recensione"
+                      title={isAdmin && rev.user_id !== myProfile.userId ? "Elimina come Admin" : "Elimina recensione"}
                     >
                       <Trash2 size={18} />
                       <span className="text-sm font-bold sm:hidden">Elimina</span>
