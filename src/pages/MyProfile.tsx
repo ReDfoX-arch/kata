@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X, Heart, MapPin, Medal } from 'lucide-react';
+import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X, Heart, MapPin, Medal, ChevronDown, ChevronUp } from 'lucide-react';
 
 type Profile = {
   username: string;
@@ -51,6 +51,9 @@ export default function MyProfile() {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null);
+  
+  // Stato per nascondere/mostrare i trofei non sbloccati
+  const [showLocked, setShowLocked] = useState(false);
 
   useEffect(() => {
     if (!profile || !profile.userId) {
@@ -161,12 +164,12 @@ export default function MyProfile() {
   
   const userBadge = getBadgeInfo(reviews.length);
 
-  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI 3.0 ---
+  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI ---
   const cities = new Set(reviews.map(r => r.restaurants?.city?.trim().toLowerCase()).filter(Boolean));
-  const isEsploratore = cities.size >= 3;
+  const isEsploratore = cities.size >= 5;
 
   const nazioni = new Set(reviews.map(r => r.restaurants?.country?.trim().toLowerCase()).filter(Boolean));
-  const isViaggiatore = nazioni.size >= 2;
+  const isViaggiatore = nazioni.size >= 5;
 
   let isErbivoro = false;
   let currentVegStreak = 0;
@@ -192,6 +195,9 @@ export default function MyProfile() {
     return ct.includes('02:') || ct.includes('03:') || ct.includes('04:') || ct.includes('05:') || ct.includes('06:') || ct.includes('24h') || ct.includes('24 ore');
   });
 
+  const isGeneroso = reviews.some(r => r.score_location === 10 && r.score_offer === 10 && r.score_bill === 10 && r.score_menu === 10);
+  const isBoccaDiFuoco = reviews.some(r => r.score_menu === 10);
+
   const restCounts: Record<string, number> = {};
   reviews.forEach(r => {
     if (r.restaurant_id) {
@@ -204,16 +210,18 @@ export default function MyProfile() {
   const isCacciatore = reviews.some(r => r.score_bill === 10);
 
   const achievementsList = [
-    { id: 'esploratore', title: 'Esploratore', desc: 'Hai recensito kebab in 3 città diverse.', icon: '🗺️', unlocked: isEsploratore },
-    { id: 'viaggiatore', title: 'Viaggiatore Internazionale', desc: 'Hai provato kebab in almeno 2 nazioni.', icon: '✈️', unlocked: isViaggiatore },
+    { id: 'esploratore', title: 'Esploratore', desc: 'Hai recensito kebab in 5 città diverse.', icon: '🗺️', unlocked: isEsploratore },
+    { id: 'viaggiatore', title: 'Viaggiatore Internazionale', desc: 'Hai provato kebab in almeno 5 nazioni.', icon: '✈️', unlocked: isViaggiatore },
     { id: 'erbivoro', title: 'Erbivoro Convinto', desc: 'Hai lasciato 3 recensioni Veg di fila.', icon: '🧆', unlocked: isErbivoro },
     { id: 'notturno', title: 'Animale Notturno', desc: 'Hai recensito un locale che chiude dopo le 02:00.', icon: '🦉', unlocked: isNotturno },
-    { id: 'critico', title: 'Il Pretenzioso', desc: 'Hai dato il tuo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
+    { id: 'critico', title: 'Il Critico Cattivo', desc: 'Hai dato il tuo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
     { id: 'affezionato', title: 'Cliente Affezionato', desc: 'Sei tornato a recensire lo stesso locale.', icon: '🔁', unlocked: isAffezionato },
     { id: 'poeta', title: 'Il Poeta del Kebab', desc: 'Hai scritto una recensione dettagliata (>150 car).', icon: '✍️', unlocked: isPoeta },
     { id: 'cacciatore', title: 'Cacciatore di Sconti', desc: 'Hai assegnato un 10 perfetto al Conto.', icon: '💸', unlocked: isCacciatore }
   ];
-  // --------------------------------------------
+
+  const unlockedAchievements = achievementsList.filter(a => a.unlocked);
+  const lockedAchievements = achievementsList.filter(a => !a.unlocked);
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
@@ -273,24 +281,59 @@ export default function MyProfile() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm font-bold">{error}</div>}
 
-      {/* SEZIONE TROFEI E MISSIONI */}
+      {/* SEZIONE TROFEI E MISSIONI - VERSIONE PULITA */}
       <div className="mt-8 mb-4">
         <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
           <Medal className="text-orange-500" size={24} /> Missioni e Trofei
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {achievementsList.map(ach => (
-            <div key={ach.id} className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${ach.unlocked ? 'bg-white border-orange-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60 grayscale'}`}>
-              <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-2xl ${ach.unlocked ? 'bg-orange-100' : 'bg-slate-200'}`}>
-                {ach.icon}
+        
+        {unlockedAchievements.length === 0 && (
+          <p className="text-slate-500 bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-sm">Non hai ancora sbloccato nessun trofeo. Esplora e recensisci per completare le missioni!</p>
+        )}
+
+        {unlockedAchievements.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {unlockedAchievements.map(ach => (
+              <div key={ach.id} className="p-4 rounded-xl border-2 border-orange-200 flex items-center gap-4 bg-white shadow-sm transition-all">
+                <div className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-2xl bg-orange-100">
+                  {ach.icon}
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800">{ach.title}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{ach.desc}</p>
+                </div>
               </div>
-              <div>
-                <h3 className={`font-bold ${ach.unlocked ? 'text-slate-800' : 'text-slate-500'}`}>{ach.title}</h3>
-                <p className="text-xs text-slate-500 mt-0.5">{ach.desc}</p>
+            ))}
+          </div>
+        )}
+
+        {lockedAchievements.length > 0 && (
+          <div className="mt-4">
+            <button 
+              onClick={() => setShowLocked(!showLocked)}
+              className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-orange-600 transition-colors w-full p-2"
+            >
+              {showLocked ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {showLocked ? 'Nascondi missioni da completare' : `Mostra missioni da completare (${lockedAchievements.length})`}
+            </button>
+            
+            {showLocked && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 animate-fade-in">
+                {lockedAchievements.map(ach => (
+                  <div key={ach.id} className="p-4 rounded-xl border-2 border-slate-200 flex items-center gap-4 bg-slate-50 opacity-60 grayscale transition-all">
+                    <div className="w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-2xl bg-slate-200">
+                      {ach.icon}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-500">{ach.title}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">{ach.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4 flex items-center gap-2">
