@@ -36,7 +36,6 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [zoomedAvatar, setZoomedAvatar] = useState<string | null>(null);
 
-  // Stato per nascondere/mostrare i trofei non sbloccati
   const [showLocked, setShowLocked] = useState(false);
 
   useEffect(() => {
@@ -74,7 +73,7 @@ export default function UserProfile() {
 
   const userBadge = getBadgeInfo(reviews.length);
 
-  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI 3.0 ---
+  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI 3.0 (Ripulito) ---
   const cities = new Set(reviews.map(r => r.restaurants?.city?.trim().toLowerCase()).filter(Boolean));
   const isEsploratore = cities.size >= 5;
 
@@ -104,9 +103,6 @@ export default function UserProfile() {
     const ct = (r.restaurants?.closing_time || '').toLowerCase();
     return ct.includes('02:') || ct.includes('03:') || ct.includes('04:') || ct.includes('05:') || ct.includes('06:') || ct.includes('24h') || ct.includes('24 ore');
   });
-
-  const isGeneroso = reviews.some(r => r.score_location === 10 && r.score_offer === 10 && r.score_bill === 10 && r.score_menu === 10);
-  const isBoccaDiFuoco = reviews.some(r => r.score_menu === 10);
 
   const restCounts: Record<string, number> = {};
   reviews.forEach(r => {
