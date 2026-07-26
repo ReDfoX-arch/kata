@@ -10,6 +10,7 @@ export default function RestaurantPage() {
   const [restaurant, setRestaurant] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [photos, setPhotos] = useState<any[]>([]);
+  const [likes, setLikes] = useState<Record<string, string[]>>({}); // { review_id: [user_id1, user_id2] }
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
@@ -39,6 +40,19 @@ export default function RestaurantPage() {
       }
 
       if (revsData) {
+        // Fetch likes per le recensioni
+        const reviewIds = revsData.map((r: any) => r.id);
+        const { data: likesData } = await supabase.from('review_likes').select('*').in('review_id', reviewIds);
+        
+        const likesMap: Record<string, string[]> = {};
+        if (likesData) {
+          likesData.forEach((l: any) => {
+             if (!likesMap[l.review_id]) likesMap[l.review_id] = [];
+             likesMap[l.review_id].push(l.user_id);
+          });
+        }
+        setLikes(likesMap);
+
         const userIds = Array.from(new Set(revsData.map((r: any) => r.user_id).filter(Boolean)));
         let usersMap: Record<string, string> = {};
         if (userIds.length > 0) {
@@ -47,7 +61,16 @@ export default function RestaurantPage() {
             usersMap = users.reduce((acc: any, u: any) => ({ ...acc, [u.secret_id]: u.username }), {});
           }
         }
+        
+        // Ordina mettendo prima le recensioni con più like, poi per data
         const mapped = revsData.map((r: any) => ({ ...r, display_username: usersMap[r.user_id] || r.username }));
+        mapped.sort((a: any, b: any) => {
+           const likesA = likesMap[a.id]?.length || 0;
+           const likesB = likesMap[b.id]?.length || 0;
+           if (likesA !== likesB) return likesB - likesA;
+           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        });
+        
         setReviews(mapped);
       }
 
@@ -72,6 +95,32 @@ export default function RestaurantPage() {
       alert("Errore nell'aggiornamento dei preferiti.");
     } finally {
       setFavoriteLoading(false);
+    }
+  };
+  
+  const toggleLike = async (reviewId: string) => {
+    if (!profile) return alert("Devi aver effettuato l'accesso per mettere Like.");
+    
+    const currentLikes = likes[reviewId] || [];
+    const hasLiked = currentLikes.includes(profile.userId);
+    
+    // Aggiornamento Ottimistico
+    const updatedLikes = hasLiked 
+       ? currentLikes.filter(id => id !== profile.userId)
+       : [...currentLikes, profile.userId];
+       
+    setLikes(prev => ({...prev, [reviewId]: updatedLikes}));
+
+    try {
+       if (hasLiked) {
+         await supabase.from('review_likes').delete().eq('review_id', reviewId).eq('user_id', profile.userId);
+       } else {
+         await supabase.from('review_likes').insert({ review_id: reviewId, user_id: profile.userId });
+       }
+    } catch (err) {
+       console.error("Errore Like:", err);
+       // Revert in caso di errore
+       setLikes(prev => ({...prev, [reviewId]: currentLikes}));
     }
   };
 
@@ -125,7 +174,7 @@ export default function RestaurantPage() {
       const { error } = await supabase.from('reviews').delete().eq('id', reviewId).eq('user_id', profile.userId);
       
       if (error) {
-        if (error.code === '42501') alert("❌ Errore di permessi. PostgreSQL ha bloccato la cancellazione (probabile RLS Rifiutata). Controlla il database.");
+        if (error.code === '42501') alert("❌ Errore di permessi. PostgreSQL ha bloccato la cancellazione.");
         throw error;
       }
       
@@ -198,7 +247,6 @@ export default function RestaurantPage() {
             <p className="text-slate-600 font-medium flex items-center gap-1">
               <MapPin size={16} className="text-orange-600" /> {restaurant.city}, {restaurant.country}
             </p>
-            {/* NUOVO: Informazione Orario Chiusura */}
             <p className="text-slate-600 font-medium flex items-center gap-1">
               <Clock size={16} className="text-blue-500" /> Chiusura: <span className="font-bold">{restaurant.closing_time || 'NA'}</span>
             </p>
@@ -292,6 +340,10 @@ export default function RestaurantPage() {
             const textColor = isVeg ? 'text-[#3f5737]' : 'text-slate-800';
             const iconEmoji = isVeg ? '🧆' : '🥙';
             const boxBg = isVeg ? 'bg-[#eaf0e8]' : 'bg-slate-50';
+            
+            // SOCIAL REACTION
+            const reviewLikes = likes[rev.id] || [];
+            const hasLiked = profile ? reviewLikes.includes(profile.userId) : false;
 
             return (
               <div key={rev.id} className={`p-5 rounded-xl shadow-sm border ${cardBg}`}>
@@ -314,17 +366,36 @@ export default function RestaurantPage() {
                     )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mb-4">
                   <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Location</p><p className={`font-black ${textColor}`}>{rev.score_location}</p></div>
                   <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Menù</p><p className={`font-black ${textColor}`}>{rev.score_offer}</p></div>
                   <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Conto</p><p className={`font-black ${textColor}`}>{rev.score_bill}</p></div>
                   <div className={`${boxBg} p-2 rounded-lg text-center`}><p className={`text-xs font-bold uppercase ${isVeg ? 'text-[#5c7a52]' : 'text-slate-500'}`}>Gusto</p><p className={`font-black ${textColor}`}>{rev.score_menu}</p></div>
                 </div>
-                {rev.comment && (
-                  <div className={`mt-4 pt-3 border-t text-sm font-medium italic ${isVeg ? 'border-[#dce6d8] text-[#5c7a52]' : 'border-slate-100 text-slate-600'}`}>
-                    « {rev.comment} »
+                
+                <div className={`flex items-end justify-between gap-4 pt-3 border-t ${isVeg ? 'border-[#dce6d8]' : 'border-slate-100'}`}>
+                  <div className="flex-1">
+                    {rev.comment && (
+                      <div className={`text-sm font-medium italic ${isVeg ? 'text-[#5c7a52]' : 'text-slate-600'}`}>
+                        « {rev.comment} »
+                      </div>
+                    )}
                   </div>
-                )}
+                  {/* UTILE / UPVOTE BUTTON */}
+                  <button 
+                    onClick={() => toggleLike(rev.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm border
+                      ${hasLiked 
+                        ? 'bg-orange-100 text-orange-700 border-orange-300' 
+                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-700'
+                      }
+                    `}
+                  >
+                    <span className={hasLiked ? 'scale-110 transition-transform' : 'grayscale transition-all'}>🌯</span> 
+                    {reviewLikes.length} Utile
+                  </button>
+                </div>
+
               </div>
             );
           })}

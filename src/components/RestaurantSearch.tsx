@@ -344,7 +344,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Inizia a scrivere... (Es. Mila)"
+                    placeholder="Es. Cinisello Balsamo"
                     value={cityQuery}
                     onChange={(e) => {
                       setCityQuery(e.target.value);
