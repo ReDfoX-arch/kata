@@ -123,7 +123,7 @@ export default function MapPage() {
         setFindingKebab(false);
         
         // Popup custom
-        if(window.confirm(`🔥 TROVATO! Il kebab più vicino e buono è ${bestChoice.name} (Voto: ${bestChoice.avgScore.toFixed(1)}) a sole ${bestChoice.distance.toFixed(1)} km da te! Vuoi aprire la pagina del ristorante?`)) {
+        if(window.confirm(`🔥 TROVATO! Il kebab più vicino e buono è ${bestChoice.name} (Voto: ${bestChoice.avgScore.toFixed(1)}) a soli ${bestChoice.distance.toFixed(1)} km da te! Vuoi aprire la pagina del ristorante?`)) {
            navigate(`/restaurant/${bestChoice.id}`);
         }
 

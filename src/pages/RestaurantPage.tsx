@@ -392,7 +392,7 @@ export default function RestaurantPage() {
                     `}
                   >
                     <span className={hasLiked ? 'scale-110 transition-transform' : 'grayscale transition-all'}>🌯</span> 
-                    {reviewLikes.length} Utile
+                    {reviewLikes.length} UpKebab
                   </button>
                 </div>
 
