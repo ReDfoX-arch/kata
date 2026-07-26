@@ -49,7 +49,7 @@ export default function UserProfile() {
         setUser(userData);
         const { data: revs } = await supabase
           .from('reviews')
-          .select('*, restaurants(id, name, city, closing_time)')
+          .select('*, restaurants(id, name, city, country, closing_time)')
           .eq('user_id', userData.secret_id)
           .order('created_at', { ascending: false });
 
@@ -71,9 +71,12 @@ export default function UserProfile() {
 
   const userBadge = getBadgeInfo(reviews.length);
 
-  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI ---
+  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI 3.0 ---
   const cities = new Set(reviews.map(r => r.restaurants?.city?.trim().toLowerCase()).filter(Boolean));
   const isEsploratore = cities.size >= 3;
+
+  const nazioni = new Set(reviews.map(r => r.restaurants?.country?.trim().toLowerCase()).filter(Boolean));
+  const isViaggiatore = nazioni.size >= 2;
 
   let isErbivoro = false;
   let currentVegStreak = 0;
@@ -99,11 +102,26 @@ export default function UserProfile() {
     return ct.includes('02:') || ct.includes('03:') || ct.includes('04:') || ct.includes('05:') || ct.includes('06:') || ct.includes('24h') || ct.includes('24 ore');
   });
 
+  const restCounts: Record<string, number> = {};
+  reviews.forEach(r => {
+    if (r.restaurant_id) {
+      restCounts[r.restaurant_id] = (restCounts[r.restaurant_id] || 0) + 1;
+    }
+  });
+  const isAffezionato = Object.values(restCounts).some(count => count > 1);
+
+  const isPoeta = reviews.some(r => r.comment && r.comment.length >= 150);
+  const isCacciatore = reviews.some(r => r.score_bill === 10);
+
   const achievementsList = [
     { id: 'esploratore', title: 'Esploratore', desc: 'Ha recensito kebab in 3 città diverse.', icon: '🗺️', unlocked: isEsploratore },
+    { id: 'viaggiatore', title: 'Viaggiatore Internazionale', desc: 'Ha provato kebab in almeno 2 nazioni.', icon: '✈️', unlocked: isViaggiatore },
     { id: 'erbivoro', title: 'Erbivoro Convinto', desc: 'Ha lasciato 3 recensioni Veg di fila.', icon: '🧆', unlocked: isErbivoro },
-    { id: 'critico', title: 'Il Critico Cattivo', desc: 'Ha dato un voto sotto il 4.', icon: '👺', unlocked: isCritico },
-    { id: 'notturno', title: 'Animale Notturno', desc: 'Ha recensito un locale che chiude dopo le 02:00.', icon: '🦉', unlocked: isNotturno }
+    { id: 'notturno', title: 'Animale Notturno', desc: 'Ha recensito un locale che chiude dopo le 02:00.', icon: '🦉', unlocked: isNotturno },
+    { id: 'critico', title: 'Il Critico Cattivo', desc: 'Ha dato il suo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
+    { id: 'affezionato', title: 'Cliente Affezionato', desc: 'È tornato a recensire lo stesso locale.', icon: '🔁', unlocked: isAffezionato },
+    { id: 'poeta', title: 'Il Poeta del Kebab', desc: 'Ha scritto una recensione dettagliata (>150 car).', icon: '✍️', unlocked: isPoeta },
+    { id: 'cacciatore', title: 'Cacciatore di Sconti', desc: 'Ha assegnato un 10 perfetto al Conto.', icon: '💸', unlocked: isCacciatore }
   ];
   // --------------------------------------------
 
