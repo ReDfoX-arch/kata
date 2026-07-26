@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, MapPin, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Search, MapPin, Plus, Loader2, AlertCircle, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface RestaurantSearchProps {
@@ -8,49 +8,87 @@ interface RestaurantSearchProps {
 
 export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dbResults, setDbResults] = useState<any[]>([]);
   
-  // Questa è la variabile che causava l'errore. Ora la usiamo per la rotellina!
+  // Risultati DB interno
+  const [dbResults, setDbResults] = useState<any[]>([]);
   const [isSearchingDB, setIsSearchingDB] = useState(false);
+  
+  // Risultati OpenStreetMap esterno
+  const [externalResults, setExternalResults] = useState<any[]>([]);
+  const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   
   const [selectedRest, setSelectedRest] = useState<any>(null);
 
+  // Stati per l'inserimento manuale
   const [isManual, setIsManual] = useState(false);
   const [manualName, setManualName] = useState('');
-  
   const [cityQuery, setCityQuery] = useState('');
   const [citySuggestions, setCitySuggestions] = useState<any[]>([]);
   const [isSearchingCity, setIsSearchingCity] = useState(false);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
-
   const [manualCoords, setManualCoords] = useState('');
   const [error, setError] = useState('');
 
+  // MOTORE DI RICERCA UNIFICATO (DB + Mappe Esterne)
   useEffect(() => {
-    if (searchTerm.trim().length < 2 || isManual || selectedRest?.name === searchTerm) {
+    const term = searchTerm.trim();
+    if (term.length < 2 || isManual || selectedRest?.name === term) {
       setDbResults([]);
+      setExternalResults([]);
       setIsSearchingDB(false);
+      setIsSearchingExternal(false);
       return;
     }
 
-    const searchDB = async () => {
+    const performSearch = async () => {
+      // 1. Cerca nel DB di KATA
       setIsSearchingDB(true);
-      const { data } = await supabase
+      const { data: localData } = await supabase
         .from('restaurants')
         .select('*')
-        .ilike('name', `%${searchTerm}%`)
+        .ilike('name', `%${term}%`)
         .limit(5);
       
-      if (data) setDbResults(data);
+      if (localData) setDbResults(localData);
       setIsSearchingDB(false);
+
+      // 2. Cerca nel mondo con OpenStreetMap (se la parola è >= 3 lettere)
+      if (term.length >= 3) {
+        setIsSearchingExternal(true);
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(term)}&format=json&addressdetails=1&accept-language=en&limit=5`);
+          const extData = await res.json();
+          
+          const formattedExt = extData
+            .filter((item: any) => item.name) // Prendi solo i punti di interesse veri e propri
+            .map((item: any) => ({
+              id: `ext-${item.place_id}`,
+              name: item.name,
+              city: item.address?.city || item.address?.town || item.address?.village || item.address?.municipality || item.address?.county || 'Sconosciuta',
+              country: item.address?.country || 'Sconosciuto',
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon),
+              isExternal: true
+            }));
+            
+          setExternalResults(formattedExt);
+        } catch (err) {
+          console.error("Errore ricerca mappe esterne:", err);
+        } finally {
+          setIsSearchingExternal(false);
+        }
+      } else {
+        setExternalResults([]);
+      }
     };
 
-    const delay = setTimeout(searchDB, 300);
+    const delay = setTimeout(performSearch, 500); // Ritardo leggermente più alto per non spammare l'API esterna
     return () => clearTimeout(delay);
   }, [searchTerm, isManual, selectedRest]);
 
+  // Motore di ricerca Città per l'inserimento manuale (immutato)
   useEffect(() => {
     if (!isManual || cityQuery.trim().length < 3 || cityQuery === selectedCity) {
       setCitySuggestions([]);
@@ -91,10 +129,12 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     return () => clearTimeout(delay);
   }, [cityQuery, isManual, selectedCity]);
 
-  const handleSelectDbRest = (rest: any) => {
+  const handleSelectRest = (rest: any) => {
+    // Funziona sia per i locali KATA che per quelli estratti dalle mappe!
     setSelectedRest(rest);
     setSearchTerm(rest.name);
     setDbResults([]);
+    setExternalResults([]);
     onSelect(rest);
   };
 
@@ -107,35 +147,23 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
 
   const handleAddManual = () => {
     setError('');
-    
     if (!manualName.trim() || !selectedCity || !selectedCountry || !manualCoords.trim()) {
       setError('Compila tutti i campi e seleziona la città dai suggerimenti.');
       return;
     }
-
     const coordsMatch = manualCoords.match(/(-?\d+\.\d+)[\s,;]+(-?\d+\.\d+)/);
-
     if (!coordsMatch) {
       setError('Formato coordinate errato. Copia e incolla da Google Maps (es. 45.557, 9.214).');
       return;
     }
-
     const lat = parseFloat(coordsMatch[1]);
     const lng = parseFloat(coordsMatch[2]);
-
     if (isNaN(lat) || isNaN(lng)) {
       setError('Le coordinate non sono numericamente valide.');
       return;
     }
 
-    const newRest = {
-      name: manualName.trim(),
-      city: selectedCity,
-      country: selectedCountry,
-      lat,
-      lng
-    };
-
+    const newRest = { name: manualName.trim(), city: selectedCity, country: selectedCountry, lat, lng };
     setSelectedRest(newRest);
     setSearchTerm(newRest.name);
     setIsManual(false);
@@ -146,6 +174,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     setSearchTerm('');
     setSelectedRest(null);
     setDbResults([]);
+    setExternalResults([]);
     setIsManual(false);
     setManualName('');
     setCityQuery('');
@@ -153,6 +182,9 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     setSelectedCountry('');
     setManualCoords('');
   };
+
+  const isSearching = isSearchingDB || isSearchingExternal;
+  const hasResults = dbResults.length > 0 || externalResults.length > 0;
 
   return (
     <div className="w-full space-y-4">
@@ -172,12 +204,10 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
                 if (selectedRest) setSelectedRest(null);
               }}
               placeholder="Es. Magdy2 Sesto San Giovanni..."
-              /* Aggiunto pr-12 per non far accavallare il testo con lo spinner */
               className="w-full text-lg p-4 pl-12 pr-12 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all shadow-sm disabled:bg-slate-50"
               disabled={isManual || selectedRest !== null}
             />
-            {/* FIX: Usiamo finalmente la variabile per mostrare la rotellina! */}
-            {isSearchingDB && (
+            {isSearching && (
               <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-orange-500" size={20} />
             )}
           </div>
@@ -188,28 +218,57 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
           )}
         </div>
 
-        {!isManual && !selectedRest && dbResults.length > 0 && (
-          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-            {dbResults.map((rest) => (
-              <button
-                key={rest.id}
-                type="button"
-                onClick={() => handleSelectDbRest(rest)}
-                className="w-full text-left p-4 hover:bg-orange-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
-              >
-                <span className="font-bold text-slate-800">{rest.name}</span>
-                <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                  <MapPin size={12} /> {rest.city}, {rest.country}
-                </span>
-              </button>
-            ))}
+        {/* Dropdown Risultati Combinati */}
+        {!isManual && !selectedRest && hasResults && (
+          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
+            
+            {/* Risultati KATA */}
+            {dbResults.length > 0 && (
+              <div className="bg-orange-50/50">
+                <div className="px-4 py-2 text-[10px] font-bold text-orange-600 uppercase tracking-wider bg-orange-100/50">Dal database KATA</div>
+                {dbResults.map((rest) => (
+                  <button
+                    key={rest.id}
+                    type="button"
+                    onClick={() => handleSelectRest(rest)}
+                    className="w-full text-left p-4 hover:bg-orange-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+                  >
+                    <span className="font-bold text-slate-800">{rest.name}</span>
+                    <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                      <MapPin size={12} className="text-orange-500" /> {rest.city}, {rest.country}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Risultati OpenStreetMap */}
+            {externalResults.length > 0 && (
+              <div>
+                <div className="px-4 py-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50">Da OpenStreetMap</div>
+                {externalResults.map((rest) => (
+                  <button
+                    key={rest.id}
+                    type="button"
+                    onClick={() => handleSelectRest(rest)}
+                    className="w-full text-left p-4 hover:bg-blue-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+                  >
+                    <span className="font-bold text-slate-800">{rest.name}</span>
+                    <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                      <Globe size={12} className="text-blue-500" /> {rest.city}, {rest.country}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {!isManual && !selectedRest && searchTerm.length >= 2 && dbResults.length === 0 && !isSearchingDB && (
-        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
-          <p className="text-sm text-orange-800 font-medium">Non trovi il locale? Aggiungilo tu al database KATA.</p>
+      {/* Pulsante per inserimento manuale (se non lo trova da nessuna parte o si vuole forzare) */}
+      {!isManual && !selectedRest && searchTerm.length >= 2 && !isSearching && (
+        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in mt-4">
+          <p className="text-sm text-orange-800 font-medium">Non c'è nei suggerimenti? Inserisci dati e coordinate a mano.</p>
           <button
             type="button"
             onClick={() => setIsManual(true)}
@@ -220,6 +279,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
         </div>
       )}
 
+      {/* FORM INSERIMENTO MANUALE */}
       {isManual && (
         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4 animate-fade-in">
           <h3 className="font-extrabold text-slate-800 mb-4 flex items-center gap-2">
