@@ -5,6 +5,7 @@ export default function Info() {
   // Aggiornalo tu manualmente con gli ultimi 10 commit quando fai un rilascio.
   const changelog = [
     // { version: 'vxx', date: 'xx/xx/2026', message: 'xx' },
+    { version: 'v1.12', date: '26/07/2026', message: 'Introdotti badge e obiettivi segreti...' },
     { version: 'v1.11', date: '26/07/2026', message: 'Aggiunto pulsante "Capo, ho fame!" per la ricerca GPS intelligente del locale più vicino' },
     { version: 'v1.10', date: '26/07/2026', message: 'Introdotte le Classifiche Dinamiche (Generale, Risparmio, Falafel e Campioni Locali)' },
     { version: 'v1.9', date: '26/07/2026', message: 'Aggiunte le reazioni social ("UpKebab") per votare le recensioni della community' },    

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X, Heart, MapPin } from 'lucide-react';
+import { Trash2, User as UserIcon, LogOut, Loader2, Camera, X, Heart, MapPin, Medal } from 'lucide-react';
 
 type Profile = {
   username: string;
@@ -61,7 +61,7 @@ export default function MyProfile() {
     let mounted = true;
     const fetchData = async () => {
       setLoading(true);
-      const { data: revs } = await supabase.from('reviews').select('*, restaurants(id, name, city)').eq('user_id', profile.userId).order('created_at', { ascending: false });
+      const { data: revs } = await supabase.from('reviews').select('*, restaurants(id, name, city, closing_time)').eq('user_id', profile.userId).order('created_at', { ascending: false });
       if (mounted && revs) setReviews(revs);
       const { data: favs } = await supabase.from('user_favorites').select('restaurant_id, restaurants(*)').eq('user_id', profile.userId).order('created_at', { ascending: false });
       if (mounted && favs) setFavorites(favs.map(f => f.restaurants));
@@ -153,13 +153,49 @@ export default function MyProfile() {
     }
   };
 
-  const avgGiven = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score), 0) / reviews.length).toFixed(1) : '0.0';
+  const avgGiven = reviews.length > 0 ? (reviews.reduce((acc, curr) => acc + Number(curr.average_score || ((curr.score_location + curr.score_offer + curr.score_bill + curr.score_menu) / 4)), 0) / reviews.length).toFixed(1) : '0.0';
   const vegCount = reviews.filter(r => r.is_vegetarian).length;
   const meatCount = reviews.length - vegCount;
   const vegPerc = reviews.length > 0 ? Math.round((vegCount / reviews.length) * 100) : 0;
   const meatPerc = reviews.length > 0 ? Math.round((meatCount / reviews.length) * 100) : 0;
   
   const userBadge = getBadgeInfo(reviews.length);
+
+  // --- CALCOLO MISSIONI E OBIETTIVI SEGRETI ---
+  const cities = new Set(reviews.map(r => r.restaurants?.city?.trim().toLowerCase()).filter(Boolean));
+  const isEsploratore = cities.size >= 3;
+
+  let isErbivoro = false;
+  let currentVegStreak = 0;
+  for (const rev of reviews) {
+    if (rev.is_vegetarian) {
+      currentVegStreak++;
+      if (currentVegStreak >= 3) {
+        isErbivoro = true;
+        break;
+      }
+    } else {
+      currentVegStreak = 0;
+    }
+  }
+
+  const isCritico = reviews.some(r => {
+    const avg = (r.score_location + r.score_offer + r.score_bill + r.score_menu) / 4;
+    return avg < 4;
+  });
+
+  const isNotturno = reviews.some(r => {
+    const ct = (r.restaurants?.closing_time || '').toLowerCase();
+    return ct.includes('02:') || ct.includes('03:') || ct.includes('04:') || ct.includes('05:') || ct.includes('06:') || ct.includes('24h') || ct.includes('24 ore');
+  });
+
+  const achievementsList = [
+    { id: 'esploratore', title: 'Esploratore', desc: 'Hai recensito kebab in 3 città diverse.', icon: '🗺️', unlocked: isEsploratore },
+    { id: 'erbivoro', title: 'Erbivoro Convinto', desc: 'Hai lasciato 3 recensioni Veg di fila.', icon: '🧆', unlocked: isErbivoro },
+    { id: 'critico', title: 'Il Critico Cattivo', desc: 'Hai dato il tuo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
+    { id: 'notturno', title: 'Animale Notturno', desc: 'Hai recensito un locale che chiude dopo le 02:00.', icon: '🦉', unlocked: isNotturno }
+  ];
+  // --------------------------------------------
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 mb-20 md:mb-8 animate-fade-in">
@@ -171,12 +207,9 @@ export default function MyProfile() {
       )}
 
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-md text-white flex flex-col overflow-hidden">
-        
-        {/* Cambiato in items-center */}
         <div className="p-8 flex flex-col md:flex-row justify-between md:items-center gap-6">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              {/* Cambiato in w-24 h-24 */}
               <div className={`w-24 h-24 rounded-full bg-slate-700 border-4 border-white shadow-lg flex items-center justify-center overflow-hidden ${avatar && !uploadingAvatar ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`} onClick={() => { if (avatar && !uploadingAvatar) setZoomedAvatar(avatar); }}>
                 {uploadingAvatar ? <Loader2 size={32} className="text-white animate-spin" /> : avatar ? <img src={avatar} alt="Avatar profilo" className="w-full h-full object-cover aspect-square bg-white" /> : <UserIcon size={48} className="text-white/50" />}
               </div>
@@ -218,10 +251,29 @@ export default function MyProfile() {
             {userBadge.current} / {userBadge.total}
           </span>
         </div>
-
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-sm font-bold">{error}</div>}
+
+      {/* SEZIONE TROFEI E MISSIONI */}
+      <div className="mt-8 mb-4">
+        <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2 mb-4">
+          <Medal className="text-orange-500" size={24} /> Missioni e Trofei
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {achievementsList.map(ach => (
+            <div key={ach.id} className={`p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${ach.unlocked ? 'bg-white border-orange-200 shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60 grayscale'}`}>
+              <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-2xl ${ach.unlocked ? 'bg-orange-100' : 'bg-slate-200'}`}>
+                {ach.icon}
+              </div>
+              <div>
+                <h3 className={`font-bold ${ach.unlocked ? 'text-slate-800' : 'text-slate-500'}`}>{ach.title}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{ach.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <h2 className="text-xl font-extrabold text-slate-800 mt-8 mb-4 flex items-center gap-2">
         <Heart className="text-red-500" size={24} /> Locali Preferiti
@@ -273,7 +325,7 @@ export default function MyProfile() {
                   <p className="text-xs text-slate-500 truncate">{rev.restaurants.city}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">{rev.is_vegetarian ? '🧆' : '🥙'} {rev.average_score}</div>
+                  <div className="bg-slate-50 px-2 py-1 rounded font-black text-slate-800">{rev.is_vegetarian ? '🧆' : '🥙'} {rev.average_score || ((rev.score_location + rev.score_offer + rev.score_bill + rev.score_menu) / 4).toFixed(1)}</div>
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 font-bold mt-3">{new Date(rev.created_at).toLocaleDateString('it-IT')}</p>
