@@ -1,213 +1,340 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Loader2, PlusCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, MapPin, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface RestaurantSearchProps {
-  onSelect: (restaurant: { name: string; city: string; country: string; lat: number; lng: number }) => void;
+  onSelect: (restaurant: { name: string; city: string; country: string; lat: number; lng: number; closing_time?: string }) => void;
 }
 
 export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [manualOpen, setManualOpen] = useState(false);
-  const [manual, setManual] = useState({ name: '', city: '', country: '', lat: '', lng: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dbResults, setDbResults] = useState<any[]>([]);
+  
+  // Questa è la variabile che causava l'errore. Ora la usiamo per la rotellina!
+  const [isSearchingDB, setIsSearchingDB] = useState(false);
+  
+  const [selectedRest, setSelectedRest] = useState<any>(null);
+
+  const [isManual, setIsManual] = useState(false);
+  const [manualName, setManualName] = useState('');
+  
+  const [cityQuery, setCityQuery] = useState('');
+  const [citySuggestions, setCitySuggestions] = useState<any[]>([]);
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+
+  const [manualCoords, setManualCoords] = useState('');
   const [error, setError] = useState('');
 
-  const normalize = (s: string) => s ? s.trim().toLowerCase() : '';
+  useEffect(() => {
+    if (searchTerm.trim().length < 2 || isManual || selectedRest?.name === searchTerm) {
+      setDbResults([]);
+      setIsSearchingDB(false);
+      return;
+    }
 
-  const handleSearch = async (e?: React.FormEvent | React.KeyboardEvent) => {
-    if (e) e.preventDefault();
-    
-    // Rimuoviamo gli spazi vuoti iniziali/finali per evitare fallimenti di ricerca
-    const cleanQuery = query.trim();
-    if (!cleanQuery) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      // 1) Cerca nei ristoranti custom già salvati nel DB 
-      // NOTA: .ilike() di Supabase rende già la ricerca CASE-INSENSITIVE
-      const { data: localMatches } = await supabase
+    const searchDB = async () => {
+      setIsSearchingDB(true);
+      const { data } = await supabase
         .from('restaurants')
-        .select('id,name,city,country,lat,lng')
-        .ilike('name', `%${cleanQuery}%`)
-        .limit(10);
+        .select('*')
+        .ilike('name', `%${searchTerm}%`)
+        .limit(5);
+      
+      if (data) setDbResults(data);
+      setIsSearchingDB(false);
+    };
 
-      const mappedLocal = (localMatches || []).map((r: any) => ({
-        source: 'local',
-        id: r.id,
-        properties: { name: r.name, city: r.city, country: r.country },
-        geometry: { coordinates: [r.lng, r.lat] }
-      }));
+    const delay = setTimeout(searchDB, 300);
+    return () => clearTimeout(delay);
+  }, [searchTerm, isManual, selectedRest]);
 
-      // 2) Chiamata API gratuita a Photon (OpenStreetMap) con limite più ampio
-      let remoteResults: any[] = [];
+  useEffect(() => {
+    if (!isManual || cityQuery.trim().length < 3 || cityQuery === selectedCity) {
+      setCitySuggestions([]);
+      return;
+    }
+
+    const searchCities = async () => {
+      setIsSearchingCity(true);
       try {
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cleanQuery)}&limit=10`);
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityQuery)}&format=json&addressdetails=1&accept-language=en&featuretype=settlement`);
         const data = await res.json();
-        remoteResults = data.features || [];
-      } catch (err) {
-        console.warn('Photon search failed', err);
-      }
-
-      // 3) Unisci e deduplica per nome+coords
-      const combined = [...mappedLocal, ...remoteResults];
-      const seen = new Set<string>();
-      const final: any[] = [];
-      for (const item of combined) {
-        const name = item.properties?.name || item.properties?.name || 'Senza Nome';
-        const coords = item.geometry?.coordinates || [0,0];
-        const key = `${normalize(name)}|${coords[0]||0}|${coords[1]||0}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          final.push(item);
+        
+        const uniqueCities: any[] = [];
+        const seen = new Set();
+        
+        for (const item of data) {
+          const city = item.address.city || item.address.town || item.address.village || item.address.municipality || item.name;
+          const country = item.address.country;
+          
+          if (city && country) {
+            const key = `${city}-${country}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              uniqueCities.push({ city, country });
+            }
+          }
         }
+        setCitySuggestions(uniqueCities);
+        setShowCityDropdown(true);
+      } catch (err) {
+        console.error("Errore ricerca città:", err);
+      } finally {
+        setIsSearchingCity(false);
       }
+    };
 
-      setResults(final);
+    const delay = setTimeout(searchCities, 400);
+    return () => clearTimeout(delay);
+  }, [cityQuery, isManual, selectedCity]);
 
-      // Se non troviamo nulla, apri possibilità di aggiunta manuale in automatico
-      if (final.length === 0) setManualOpen(true);
-      else setManualOpen(false); // Nasconde il form se era aperto e facciamo una nuova ricerca fruttuosa
-
-    } catch (error) {
-      console.error('Errore di ricerca:', error);
-      setError('Errore durante la ricerca. Riprova.');
-    } finally {
-      setLoading(false);
-    }
+  const handleSelectDbRest = (rest: any) => {
+    setSelectedRest(rest);
+    setSearchTerm(rest.name);
+    setDbResults([]);
+    onSelect(rest);
   };
 
-  const handleSelect = (place: any) => {
-    const name = place.properties?.name || 'Locale Senza Nome';
-    const city = place.properties?.city || place.properties?.town || place.properties?.village || 'Città non specificata';
-    const country = place.properties?.country || 'Nazione non specificata';
-    const lat = place.geometry.coordinates[1];
-    const lng = place.geometry.coordinates[0];
-
-    setSelected(name);
-    setResults([]); // Nascondiamo la lista dei risultati
-    setManualOpen(false);
-    onSelect({ name, city, country, lat, lng });
+  const handleSelectCity = (city: string, country: string) => {
+    setSelectedCity(city);
+    setSelectedCountry(country);
+    setCityQuery(city);
+    setShowCityDropdown(false);
   };
 
-  const handleManualSubmit = async () => {
+  const handleAddManual = () => {
     setError('');
-    const name = manual.name.trim();
-    if (!name) { setError('Inserisci un nome.'); return; }
-    const lat = parseFloat(manual.lat);
-    const lng = parseFloat(manual.lng);
-    if (isNaN(lat) || isNaN(lng)) { setError('Coordinate non valide. Usa valori numerici per lat e lng.'); return; }
-
-    try {
-      const { data: newRest, error: insertErr } = await supabase
-        .from('restaurants')
-        .insert({ name: manual.name, city: manual.city || '', country: manual.country || '', lat, lng })
-        .select('id,name,city,country,lat,lng')
-        .single();
-
-      if (insertErr) throw insertErr;
-
-      const obj = {
-        source: 'local',
-        id: newRest.id,
-        properties: { name: newRest.name, city: newRest.city, country: newRest.country },
-        geometry: { coordinates: [newRest.lng, newRest.lat] }
-      };
-
-      handleSelect(obj);
-
-    } catch (err: any) {
-      console.error('Errore inserimento manuale:', err);
-      setError('Errore durante l\'aggiunta manuale. Riprova.');
+    
+    if (!manualName.trim() || !selectedCity || !selectedCountry || !manualCoords.trim()) {
+      setError('Compila tutti i campi e seleziona la città dai suggerimenti.');
+      return;
     }
+
+    const coordsMatch = manualCoords.match(/(-?\d+\.\d+)[\s,;]+(-?\d+\.\d+)/);
+
+    if (!coordsMatch) {
+      setError('Formato coordinate errato. Copia e incolla da Google Maps (es. 45.557, 9.214).');
+      return;
+    }
+
+    const lat = parseFloat(coordsMatch[1]);
+    const lng = parseFloat(coordsMatch[2]);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      setError('Le coordinate non sono numericamente valide.');
+      return;
+    }
+
+    const newRest = {
+      name: manualName.trim(),
+      city: selectedCity,
+      country: selectedCountry,
+      lat,
+      lng
+    };
+
+    setSelectedRest(newRest);
+    setSearchTerm(newRest.name);
+    setIsManual(false);
+    onSelect(newRest);
+  };
+
+  const resetSearch = () => {
+    setSearchTerm('');
+    setSelectedRest(null);
+    setDbResults([]);
+    setIsManual(false);
+    setManualName('');
+    setCityQuery('');
+    setSelectedCity('');
+    setSelectedCountry('');
+    setManualCoords('');
   };
 
   return (
-    <div className="bg-white p-5 border border-slate-200 rounded-xl shadow-sm">
-      <label className="block font-bold text-slate-700 uppercase tracking-wide text-sm mb-3 flex items-center gap-2">
-        <MapPin size={18} className="text-orange-600" /> Cerca il Kebabbaro
+    <div className="w-full space-y-4">
+      <label className="flex items-center gap-2 font-bold text-slate-700 uppercase tracking-wide text-sm mb-2">
+        <MapPin size={16} className="text-orange-500" /> Cerca il Kebabbaro
       </label>
-      
-      <div className="flex gap-2 mb-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-          placeholder="Es. Magdy2 Sesto San Giovanni..."
-          className="flex-1 p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all text-slate-800"
-        />
-        <button
-          type="button"
-          onClick={handleSearch}
-          className="bg-slate-800 text-white px-5 rounded-lg hover:bg-slate-700 transition-colors flex items-center justify-center"
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="animate-spin" size={20} /> : <Search size={20} />}
-        </button>
+
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (selectedRest) setSelectedRest(null);
+              }}
+              placeholder="Es. Magdy2 Sesto San Giovanni..."
+              /* Aggiunto pr-12 per non far accavallare il testo con lo spinner */
+              className="w-full text-lg p-4 pl-12 pr-12 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all shadow-sm disabled:bg-slate-50"
+              disabled={isManual || selectedRest !== null}
+            />
+            {/* FIX: Usiamo finalmente la variabile per mostrare la rotellina! */}
+            {isSearchingDB && (
+              <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-orange-500" size={20} />
+            )}
+          </div>
+          {selectedRest && (
+            <button onClick={resetSearch} className="p-4 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-xl border border-slate-200 transition-colors font-bold">
+              Cambia
+            </button>
+          )}
+        </div>
+
+        {!isManual && !selectedRest && dbResults.length > 0 && (
+          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+            {dbResults.map((rest) => (
+              <button
+                key={rest.id}
+                type="button"
+                onClick={() => handleSelectDbRest(rest)}
+                className="w-full text-left p-4 hover:bg-orange-50 border-b border-slate-100 last:border-0 flex flex-col transition-colors"
+              >
+                <span className="font-bold text-slate-800">{rest.name}</span>
+                <span className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+                  <MapPin size={12} /> {rest.city}, {rest.country}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {error && (
-        <div className="mb-4 flex items-center gap-2 text-red-800 bg-red-50 p-3 rounded-lg text-sm font-medium border border-red-200">
-          <span>⚠️</span> {error}
+      {!isManual && !selectedRest && searchTerm.length >= 2 && dbResults.length === 0 && !isSearchingDB && (
+        <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+          <p className="text-sm text-orange-800 font-medium">Non trovi il locale? Aggiungilo tu al database KATA.</p>
+          <button
+            type="button"
+            onClick={() => setIsManual(true)}
+            className="shrink-0 flex items-center gap-2 bg-white text-orange-600 px-4 py-2 rounded-lg font-bold border border-orange-200 hover:bg-orange-600 hover:text-white transition-colors"
+          >
+            <Plus size={16} /> Aggiungi Manualmente
+          </button>
         </div>
       )}
 
-      {selected && (
-        <div className="mt-4 flex items-center gap-2 text-green-800 bg-green-50 p-3 rounded-lg text-sm font-medium border border-green-200">
-          <span>✅</span> Selezionato: {selected}
-        </div>
-      )}
-
-      {results.length > 0 && (
-        <ul className="mt-3 divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden bg-white shadow-md">
-          {results.map((r, i) => (
-            <li
-              key={i}
-              onClick={() => handleSelect(r)}
-              className="p-4 hover:bg-slate-50 cursor-pointer transition-colors text-sm group"
-            >
-              <div className="font-bold text-slate-800 group-hover:text-orange-600 transition-colors">
-                {r.properties.name || 'Senza Nome'}
-              </div>
-              <div className="text-slate-500 text-xs mt-1">
-                {r.properties.street && `${r.properties.street}, `}
-                {r.properties.city || r.properties.town || r.properties.village}, {r.properties.country}
-              </div>
-            </li>
-          ))}
+      {isManual && (
+        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4 animate-fade-in">
+          <h3 className="font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+            <Plus size={20} className="text-orange-600"/> Aggiungi luogo manualmente
+          </h3>
           
-          {/* NUOVO: Opzione manuale sempre presente a fine lista */}
-          {!manualOpen && (
-            <li
-              onClick={() => setManualOpen(true)}
-              className="p-4 bg-slate-50 hover:bg-orange-50 cursor-pointer transition-colors text-sm flex items-center justify-center gap-2 text-orange-600 font-bold border-t border-slate-200 group"
-            >
-              <PlusCircle size={18} className="group-hover:scale-110 transition-transform" /> 
-              Non trovi il locale? Aggiungilo manualmente
-            </li>
+          {error && (
+            <div className="p-3 bg-red-50 text-red-600 text-sm font-bold rounded-lg flex items-center gap-2 border border-red-200">
+              <AlertCircle size={16} /> {error}
+            </div>
           )}
-        </ul>
+
+          <div className="grid grid-cols-1 gap-4">
+            
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Nome Locale</label>
+              <input
+                type="text"
+                placeholder="Es. MAVI Istanbul"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+                className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Città</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Inizia a scrivere... (Es. Mila)"
+                    value={cityQuery}
+                    onChange={(e) => {
+                      setCityQuery(e.target.value);
+                      setShowCityDropdown(true);
+                      if (selectedCity) { setSelectedCity(''); setSelectedCountry(''); }
+                    }}
+                    className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none pr-10 ${selectedCity ? 'bg-green-50 border-green-200 text-green-800 font-bold' : 'bg-white border-slate-200'}`}
+                  />
+                  {isSearchingCity && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" size={16} />}
+                </div>
+
+                {showCityDropdown && citySuggestions.length > 0 && (
+                  <div className="absolute z-[100] w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                    {citySuggestions.map((sug, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectCity(sug.city, sug.country)}
+                        className="w-full text-left p-3 hover:bg-orange-50 border-b border-slate-100 last:border-0"
+                      >
+                        <span className="font-bold text-slate-800">{sug.city}</span>
+                        <span className="text-xs text-slate-500 block">{sug.country}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-500 mt-1">Seleziona la città dal menu a tendina.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Paese</label>
+                <input
+                  type="text"
+                  placeholder="Seleziona la città prima"
+                  value={selectedCountry}
+                  readOnly
+                  className="w-full p-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 font-medium cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Coordinate Geografiche</label>
+              <input
+                type="text"
+                placeholder="Es. 45.5576999, 9.2149159"
+                value={manualCoords}
+                onChange={(e) => setManualCoords(e.target.value)}
+                className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none"
+              />
+              <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                Copia e incolla da Google Maps. <br/>
+                <span className="text-orange-600 font-bold">Formato richiesto:</span> Latitudine, Longitudine. Usa la <span className="font-bold border-b border-orange-300">VIRGOLA</span> per separare le due coordinate, e il <span className="font-bold border-b border-orange-300">PUNTO</span> per i decimali.
+              </p>
+            </div>
+
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={handleAddManual}
+              className="flex-1 bg-orange-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-orange-700 transition-colors shadow-sm"
+            >
+              Conferma e Seleziona
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsManual(false)}
+              className="px-6 py-3 rounded-lg font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
       )}
 
-      {/* Modal / Form aggiunta manuale */}
-      {manualOpen && (
-        <div className="mt-4 border border-slate-100 rounded-lg p-4 bg-slate-50">
-          <h4 className="font-bold mb-2">Aggiungi luogo manualmente</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input placeholder="Nome" value={manual.name} onChange={(e)=>setManual({...manual, name: e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Città" value={manual.city} onChange={(e)=>setManual({...manual, city: e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Paese" value={manual.country} onChange={(e)=>setManual({...manual, country: e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Latitudine" value={manual.lat} onChange={(e)=>setManual({...manual, lat: e.target.value})} className="p-2 border rounded" />
-            <input placeholder="Longitudine" value={manual.lng} onChange={(e)=>setManual({...manual, lng: e.target.value})} className="p-2 border rounded" />
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button onClick={handleManualSubmit} className="bg-orange-600 text-white px-4 py-2 rounded font-bold hover:bg-orange-700 transition-colors">Aggiungi e Seleziona</button>
-            <button onClick={() => setManualOpen(false)} className="px-4 py-2 rounded border font-bold text-slate-600 hover:bg-slate-100 transition-colors">Annulla</button>
+      {selectedRest && !isManual && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-xl flex items-center justify-between animate-fade-in">
+          <div>
+            <p className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Locale Selezionato</p>
+            <p className="font-black text-green-900 text-lg">{selectedRest.name}</p>
+            <p className="text-sm text-green-700 flex items-center gap-1"><MapPin size={14}/> {selectedRest.city}, {selectedRest.country}</p>
           </div>
         </div>
       )}
