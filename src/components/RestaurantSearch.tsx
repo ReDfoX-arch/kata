@@ -1,6 +1,41 @@
 import { useState, useEffect } from 'react';
 import { Search, MapPin, Plus, Loader2, AlertCircle, Globe } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+// Fix per le icone di Leaflet
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+// Sottocomponente per catturare i click sulla mappa
+function LocationPicker({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onLocationSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+// Sottocomponente per spostare la mappa se l'utente incolla le coordinate
+function MapCenterUpdater({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, 16); // Vola sul punto con un bello zoom
+    }
+  }, [center, map]);
+  return null;
+}
 
 interface RestaurantSearchProps {
   onSelect: (restaurant: { name: string; city: string; country: string; lat: number; lng: number; closing_time?: string }) => void;
@@ -9,17 +44,14 @@ interface RestaurantSearchProps {
 export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Risultati DB interno
   const [dbResults, setDbResults] = useState<any[]>([]);
   const [isSearchingDB, setIsSearchingDB] = useState(false);
   
-  // Risultati OpenStreetMap esterno
   const [externalResults, setExternalResults] = useState<any[]>([]);
   const [isSearchingExternal, setIsSearchingExternal] = useState(false);
   
   const [selectedRest, setSelectedRest] = useState<any>(null);
 
-  // Stati per l'inserimento manuale
   const [isManual, setIsManual] = useState(false);
   const [manualName, setManualName] = useState('');
   const [cityQuery, setCityQuery] = useState('');
@@ -31,7 +63,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   const [manualCoords, setManualCoords] = useState('');
   const [error, setError] = useState('');
 
-  // MOTORE DI RICERCA UNIFICATO (DB + Mappe Esterne)
   useEffect(() => {
     const term = searchTerm.trim();
     if (term.length < 2 || isManual || selectedRest?.name === term) {
@@ -43,7 +74,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     }
 
     const performSearch = async () => {
-      // 1. Cerca nel DB di KATA
       setIsSearchingDB(true);
       const { data: localData } = await supabase
         .from('restaurants')
@@ -54,7 +84,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
       if (localData) setDbResults(localData);
       setIsSearchingDB(false);
 
-      // 2. Cerca nel mondo con OpenStreetMap (se la parola è >= 3 lettere)
       if (term.length >= 3) {
         setIsSearchingExternal(true);
         try {
@@ -62,7 +91,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
           const extData = await res.json();
           
           const formattedExt = extData
-            .filter((item: any) => item.name) // Prendi solo i punti di interesse veri e propri
+            .filter((item: any) => item.name)
             .map((item: any) => ({
               id: `ext-${item.place_id}`,
               name: item.name,
@@ -84,11 +113,10 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
       }
     };
 
-    const delay = setTimeout(performSearch, 500); // Ritardo leggermente più alto per non spammare l'API esterna
+    const delay = setTimeout(performSearch, 500);
     return () => clearTimeout(delay);
   }, [searchTerm, isManual, selectedRest]);
 
-  // Motore di ricerca Città per l'inserimento manuale (immutato)
   useEffect(() => {
     if (!isManual || cityQuery.trim().length < 3 || cityQuery === selectedCity) {
       setCitySuggestions([]);
@@ -130,7 +158,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
   }, [cityQuery, isManual, selectedCity]);
 
   const handleSelectRest = (rest: any) => {
-    // Funziona sia per i locali KATA che per quelli estratti dalle mappe!
     setSelectedRest(rest);
     setSearchTerm(rest.name);
     setDbResults([]);
@@ -153,7 +180,7 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
     }
     const coordsMatch = manualCoords.match(/(-?\d+\.\d+)[\s,;]+(-?\d+\.\d+)/);
     if (!coordsMatch) {
-      setError('Formato coordinate errato. Copia e incolla da Google Maps (es. 45.557, 9.214).');
+      setError('Formato coordinate errato. Clicca sulla mappa o incolla da Google Maps.');
       return;
     }
     const lat = parseFloat(coordsMatch[1]);
@@ -185,6 +212,18 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
 
   const isSearching = isSearchingDB || isSearchingExternal;
   const hasResults = dbResults.length > 0 || externalResults.length > 0;
+
+  // Estrazione coordinate per visualizzare il PIN sulla mappa manuale
+  let markerPos: [number, number] | null = null;
+  if (manualCoords) {
+    const coordsMatch = manualCoords.match(/(-?\d+\.\d+)[\s,;]+(-?\d+\.\d+)/);
+    if (coordsMatch) {
+      markerPos = [parseFloat(coordsMatch[1]), parseFloat(coordsMatch[2])];
+    }
+  }
+
+  // Centro default (Hinterland Milanese / Cusano Milanino)
+  const defaultMapCenter: [number, number] = [45.55, 9.18];
 
   return (
     <div className="w-full space-y-4">
@@ -218,11 +257,8 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
           )}
         </div>
 
-        {/* Dropdown Risultati Combinati */}
         {!isManual && !selectedRest && hasResults && (
           <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
-            
-            {/* Risultati KATA */}
             {dbResults.length > 0 && (
               <div className="bg-orange-50/50">
                 <div className="px-4 py-2 text-[10px] font-bold text-orange-600 uppercase tracking-wider bg-orange-100/50">Dal database KATA</div>
@@ -241,8 +277,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
                 ))}
               </div>
             )}
-
-            {/* Risultati OpenStreetMap */}
             {externalResults.length > 0 && (
               <div>
                 <div className="px-4 py-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50">Da OpenStreetMap</div>
@@ -265,10 +299,10 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
         )}
       </div>
 
-      {/* Pulsante per inserimento manuale (se non lo trova da nessuna parte o si vuole forzare) */}
-      {!isManual && !selectedRest && searchTerm.length >= 2 && !isSearching && (
+      {/* Pulsante per inserimento manuale SEMPRE VISIBILE finché non c'è un locale selezionato */}
+      {!isManual && !selectedRest && (
         <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in mt-4">
-          <p className="text-sm text-orange-800 font-medium">Non c'è nei suggerimenti? Inserisci dati e coordinate a mano.</p>
+          <p className="text-sm text-orange-800 font-medium">Vuoi inserire un locale che non compare nella ricerca?</p>
           <button
             type="button"
             onClick={() => setIsManual(true)}
@@ -279,7 +313,6 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
         </div>
       )}
 
-      {/* FORM INSERIMENTO MANUALE */}
       {isManual && (
         <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4 animate-fade-in">
           <h3 className="font-extrabold text-slate-800 mb-4 flex items-center gap-2">
@@ -353,24 +386,41 @@ export default function RestaurantSearch({ onSelect }: RestaurantSearchProps) {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Coordinate Geografiche</label>
-              <input
-                type="text"
-                placeholder="Es. 45.5576999, 9.2149159"
-                value={manualCoords}
-                onChange={(e) => setManualCoords(e.target.value)}
-                className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none"
-              />
-              <p className="text-[11px] text-slate-500 mt-2 font-medium">
-                Copia e incolla da Google Maps. <br/>
-                <span className="text-orange-600 font-bold">Formato richiesto:</span> Latitudine, Longitudine. Usa la <span className="font-bold border-b border-orange-300">VIRGOLA</span> per separare le due coordinate, e il <span className="font-bold border-b border-orange-300">PUNTO</span> per i decimali.
-              </p>
+            {/* SEZIONE COORDINATE UNIFICATE + MAPPA INTERATTIVA */}
+            <div className="pt-2 border-t border-slate-200">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Coordinate Geografiche</label>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div className="flex flex-col justify-center">
+                  <input
+                    type="text"
+                    placeholder="Es. 45.557699, 9.214915"
+                    value={manualCoords}
+                    onChange={(e) => setManualCoords(e.target.value)}
+                    className="w-full p-3 border border-slate-200 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none bg-white"
+                  />
+                  <p className="text-xs text-slate-500 mt-3 leading-relaxed">
+                    Puoi incollare qui le coordinate di Google Maps, oppure molto più semplicemente... <br/>
+                    <span className="font-bold text-orange-600">📍 Clicca sulla mappa qui a fianco</span> per posizionare il pin ed estrarle in automatico!
+                  </p>
+                </div>
+
+                <div className="h-48 w-full rounded-xl overflow-hidden border border-slate-300 shadow-inner relative z-0">
+                  <MapContainer center={markerPos || defaultMapCenter} zoom={13} scrollWheelZoom={true} className="w-full h-full">
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <LocationPicker onLocationSelect={(lat, lng) => setManualCoords(`${lat.toFixed(6)}, ${lng.toFixed(6)}`)} />
+                    <MapCenterUpdater center={markerPos} />
+                    {markerPos && <Marker position={markerPos} />}
+                  </MapContainer>
+                </div>
+
+              </div>
             </div>
 
           </div>
 
-          <div className="flex gap-3 pt-4 border-t border-slate-200">
+          <div className="flex gap-3 pt-6 border-t border-slate-200 mt-2">
             <button
               type="button"
               onClick={handleAddManual}
