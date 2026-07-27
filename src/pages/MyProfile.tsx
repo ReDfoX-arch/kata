@@ -210,7 +210,7 @@ export default function MyProfile() {
     { id: 'viaggiatore', title: 'Viaggiatore Internazionale', desc: 'Hai provato kebab in almeno 5 nazioni.', icon: '✈️', unlocked: isViaggiatore },
     { id: 'erbivoro', title: 'Erbivoro Convinto', desc: 'Hai lasciato 3 recensioni Veg di fila.', icon: '🧆', unlocked: isErbivoro },
     { id: 'notturno', title: 'Animale Notturno', desc: 'Hai recensito un locale che chiude dopo le 02:00.', icon: '🦉', unlocked: isNotturno },
-    { id: 'critico', title: 'Il Critico Cattivo', desc: 'Hai dato il tuo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
+    { id: 'critico', title: 'Esigente', desc: 'Hai dato il tuo primo voto sotto il 4.', icon: '👺', unlocked: isCritico },
     { id: 'affezionato', title: 'Cliente Affezionato', desc: 'Sei tornato a recensire lo stesso locale.', icon: '🔁', unlocked: isAffezionato },
     { id: 'poeta', title: 'Il Poeta del Kebab', desc: 'Hai scritto una recensione dettagliata (>150 car).', icon: '✍️', unlocked: isPoeta },
     { id: 'cacciatore', title: 'Cacciatore di Sconti', desc: 'Hai assegnato un 10 perfetto al Conto.', icon: '💸', unlocked: isCacciatore }
